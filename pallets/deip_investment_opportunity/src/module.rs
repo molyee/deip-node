@@ -313,12 +313,7 @@ impl<T: Config> Pallet<T> {
                 iter.next().expect("about to finish, but there are no contributors?");
 
             for (_, ref contribution) in iter {
-                // similiar to frame_support::traits::Imbalance::ration
-                let token_amount = contribution
-                    .amount
-                    .saturated_into::<u128>()
-                    .saturating_mul(asset.amount().clone().saturated_into()) /
-                    sale.total_amount.0.saturated_into::<u128>();
+                let token_amount = init_contribution::<T>(contribution, asset, sale).token_amount();
                 let token_amount: DeipAssetBalance<T> = token_amount.saturated_into();
                 if token_amount.is_zero() {
                     continue
@@ -443,4 +438,49 @@ impl<T: Config> Pallet<T> {
 
         Ok(Some(T::DeipInvestmentWeightInfo::invest()).into())
     }
+}
+
+fn init_contribution<'a, T: Config>(
+    investment: &'a Investment<T>,
+    share: &'a DeipAsset<T>,
+    sale: &SimpleCrowdfundingOf<T>
+) -> ContributionAmount<'a, T>
+{
+    let investment_amount = investment.amount.saturated_into::<u128>();
+    let share_amount = share.amount().clone().saturated_into::<u128>();
+    let sale_amount = sale.total_amount.0.saturated_into::<u128>();
+    ContributionAmount {
+        investment,
+        share,
+        token_amount: TokenAmount {
+            investment_amount,
+            share_amount,
+            sale_amount
+        },
+    }
+}
+impl<T: Config> ContributionAmount<'_, T> {
+    fn token_amount(&self) -> u128 {
+        self.token_amount.calc()
+    }
+}
+impl TokenAmount {
+    fn calc(&self) -> u128 {
+        // similar to frame_support::traits::Imbalance::ration
+        // [ investment_amount / x = sale_amount / share_amount ]
+        // [ x = investment_amount * share_amount / sale_amount ]
+        self.investment_amount
+            .saturating_mul(self.share_amount)
+            / self.sale_amount
+    }
+}
+struct ContributionAmount<'a, T: Config> {
+    investment: &'a Investment<T>,
+    share: &'a DeipAsset<T>,
+    token_amount: TokenAmount
+}
+struct TokenAmount {
+    investment_amount: u128,
+    share_amount: u128,
+    sale_amount: u128
 }
