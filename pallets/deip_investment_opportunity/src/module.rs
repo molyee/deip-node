@@ -303,38 +303,27 @@ impl<T: Config> Pallet<T> {
     }
 
     fn process_investments(sale: &SimpleCrowdfundingOf<T>) {
-        let contributions = InvestmentMapV1::<T>::try_get(sale.external_id)
+        let investments = InvestmentMapV1::<T>::try_get(sale.external_id)
             .expect("about to finish, but there are no contributions?");
 
-        for asset in &sale.shares {
-            let mut amount = asset.amount().clone();
+        if investments.is_empty() {
+            panic!("about to finish, but there are no contributors?")
+        }
 
-            let mut iter = contributions.iter();
-            let (_, ref first_contribution) =
-                iter.next().expect("about to finish, but there are no contributors?");
+        let contribution = ContributionAccept::<T>::new(sale);
 
-            for (_, ref contribution) in iter {
-                let contrib = ContributionAccept::<T>::new(sale);
-                amount = contrib.accept(contribution, asset, amount);
-            }
+        for share in &sale.shares {
+            let mut share_remains = share.amount().clone();
 
-            if !amount.is_zero() {
-                T::transfer_from_reserved(
-                    sale.external_id,
-                    &first_contribution.owner,
-                    *asset.id(),
-                    amount,
-                )
-                .unwrap_or_else(|_| panic!("Required token_amount should be reserved"));
+            for (_, ref investment) in investments.iter() {
+
+                share_remains = contribution.accept(investment, share, share_remains);
             }
         }
 
         T::transactionally_unreserve(sale.external_id)
             .unwrap_or_else(|_| panic!("remaining assets should be reserved earlier"));
 
-        for (_, ref contribution) in contributions {
-            frame_system::Pallet::<T>::dec_consumers(&contribution.owner);
-        }
         InvestmentMapV1::<T>::remove(sale.external_id);
 
         Self::deposit_event(Event::SimpleCrowdfundingFinished(sale.external_id));
@@ -448,16 +437,24 @@ impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
         &self,
         investment: &Investment<T>,
         share: &DeipAsset<T>,
-        share_remaining: DeipAssetBalance<T>
+        share_remains: DeipAssetBalance<T>
     ) -> ShareRemaining<T>
     {
+        frame_system::Pallet::<T>::dec_consumers(&investment.owner);
+
+        if share_remains.is_zero() {
+            // Why it can be a zero ?
+            return share_remains
+        }
+
         let token_amount: DeipAssetBalance<T>
             = self.token_amount(investment, share)
             .calc()
             .saturated_into();
 
         if token_amount.is_zero() {
-            return share_remaining
+            // Why it can be a zero ?
+            return share_remains
         }
 
         T::transfer_from_reserved(
@@ -468,7 +465,7 @@ impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
         )
         .unwrap_or_else(|_| panic!("Required token_amount should be reserved"));
 
-        share_remaining - token_amount
+        share_remains - token_amount
     }
 }
 
@@ -495,6 +492,7 @@ impl<'a, T: Config> ContributionAccept<'a, T> {
 }
 impl TokenAmount {
     fn calc(&self) -> u128 {
+        if self.sale_amount.is_zero() { return 0 }
         // similar to frame_support::traits::Imbalance::ration
         // [ investment_amount / x = sale_amount / share_amount ]
         // [ x = investment_amount * share_amount / sale_amount ]
