@@ -1,5 +1,6 @@
 #![allow(type_alias_bounds)]
 
+use std::detect::__is_feature_detected::sha;
 use sp_runtime::{
     traits::{AtLeast32BitUnsigned, Saturating, Zero},
     SaturatedConversion,
@@ -313,21 +314,8 @@ impl<T: Config> Pallet<T> {
                 iter.next().expect("about to finish, but there are no contributors?");
 
             for (_, ref contribution) in iter {
-                let token_amount = init_contribution::<T>(contribution, asset, sale).token_amount();
-                let token_amount: DeipAssetBalance<T> = token_amount.saturated_into();
-                if token_amount.is_zero() {
-                    continue
-                }
-
-                amount -= token_amount;
-
-                T::transfer_from_reserved(
-                    sale.external_id,
-                    &contribution.owner,
-                    *asset.id(),
-                    token_amount,
-                )
-                .unwrap_or_else(|_| panic!("Required token_amount should be reserved"));
+                let contrib = ContributionAmount::<T>::new(contribution, asset, sale);
+                amount = contrib.accept(contribution, asset, amount);
             }
 
             if !amount.is_zero() {
@@ -440,18 +428,55 @@ impl<T: Config> Pallet<T> {
     }
 }
 
+fn accept_contribution<'a, T: Config>() {
+
+}
+
+trait ContributionT<T: Config> {
+    fn accept(
+        &self,
+        investment: &Investment<T>,
+        share: &DeipAsset<T>,
+        share_remaining: DeipAssetBalance<T>
+    ) -> ShareRemaining<T>;
+}
+type ShareRemaining<T> = DeipAssetBalance<T>;
+impl<T: Config> ContributionT<T> for ContributionAmount<'_, T> {
+    fn accept(
+        &self,
+        investment: &Investment<T>,
+        share: &DeipAsset<T>,
+        share_remaining: DeipAssetBalance<T>
+    ) -> ShareRemaining<T>
+    {
+        let token_amount: DeipAssetBalance<T> = self.token_amount().saturated_into();
+        if token_amount.is_zero() {
+            return share_remaining
+        }
+
+        T::transfer_from_reserved(
+            self.sale.external_id,
+            &investment.owner,
+            *share.id(),
+            token_amount,
+        )
+        .unwrap_or_else(|_| panic!("Required token_amount should be reserved"));
+
+        share_remaining - token_amount
+    }
+}
+
 fn init_contribution<'a, T: Config>(
     investment: &'a Investment<T>,
     share: &'a DeipAsset<T>,
-    sale: &SimpleCrowdfundingOf<T>
+    sale: &'a SimpleCrowdfundingOf<T>
 ) -> ContributionAmount<'a, T>
 {
     let investment_amount = investment.amount.saturated_into::<u128>();
     let share_amount = share.amount().clone().saturated_into::<u128>();
     let sale_amount = sale.total_amount.0.saturated_into::<u128>();
     ContributionAmount {
-        investment,
-        share,
+        sale,
         token_amount: TokenAmount {
             investment_amount,
             share_amount,
@@ -459,7 +484,15 @@ fn init_contribution<'a, T: Config>(
         },
     }
 }
-impl<T: Config> ContributionAmount<'_, T> {
+impl<'a, T: Config> ContributionAmount<'a, T> {
+    fn new(
+        investment: &'a Investment<T>,
+        share: &'a DeipAsset<T>,
+        sale: &'a SimpleCrowdfundingOf<T>
+    ) -> Self
+    {
+        init_contribution(investment, share, sale)
+    }
     fn token_amount(&self) -> u128 {
         self.token_amount.calc()
     }
@@ -475,8 +508,7 @@ impl TokenAmount {
     }
 }
 struct ContributionAmount<'a, T: Config> {
-    investment: &'a Investment<T>,
-    share: &'a DeipAsset<T>,
+    sale: &'a SimpleCrowdfundingOf<T>,
     token_amount: TokenAmount
 }
 struct TokenAmount {
