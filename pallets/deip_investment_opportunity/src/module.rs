@@ -314,7 +314,7 @@ impl<T: Config> Pallet<T> {
                 iter.next().expect("about to finish, but there are no contributors?");
 
             for (_, ref contribution) in iter {
-                let contrib = ContributionAmount::<T>::new(contribution, asset, sale);
+                let contrib = ContributionAccept::<T>::new(sale);
                 amount = contrib.accept(contribution, asset, amount);
             }
 
@@ -428,11 +428,13 @@ impl<T: Config> Pallet<T> {
     }
 }
 
-fn accept_contribution<'a, T: Config>() {
+trait ContributionT<T: Config>: ContributionAcceptT<T> {}
 
-}
+impl<T: Config, U> ContributionT<T> for U
+    where U: ContributionAcceptT<T>
+{}
 
-trait ContributionT<T: Config> {
+trait ContributionAcceptT<T: Config> {
     fn accept(
         &self,
         investment: &Investment<T>,
@@ -441,7 +443,7 @@ trait ContributionT<T: Config> {
     ) -> ShareRemaining<T>;
 }
 type ShareRemaining<T> = DeipAssetBalance<T>;
-impl<T: Config> ContributionT<T> for ContributionAmount<'_, T> {
+impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
     fn accept(
         &self,
         investment: &Investment<T>,
@@ -449,7 +451,11 @@ impl<T: Config> ContributionT<T> for ContributionAmount<'_, T> {
         share_remaining: DeipAssetBalance<T>
     ) -> ShareRemaining<T>
     {
-        let token_amount: DeipAssetBalance<T> = self.token_amount().saturated_into();
+        let token_amount: DeipAssetBalance<T>
+            = self.token_amount(investment, share)
+            .calc()
+            .saturated_into();
+
         if token_amount.is_zero() {
             return share_remaining
         }
@@ -466,35 +472,25 @@ impl<T: Config> ContributionT<T> for ContributionAmount<'_, T> {
     }
 }
 
-fn init_contribution<'a, T: Config>(
-    investment: &'a Investment<T>,
-    share: &'a DeipAsset<T>,
-    sale: &'a SimpleCrowdfundingOf<T>
-) -> ContributionAmount<'a, T>
-{
-    let investment_amount = investment.amount.saturated_into::<u128>();
-    let share_amount = share.amount().clone().saturated_into::<u128>();
-    let sale_amount = sale.total_amount.0.saturated_into::<u128>();
-    ContributionAmount {
-        sale,
-        token_amount: TokenAmount {
+impl<'a, T: Config> ContributionAccept<'a, T> {
+    fn new(sale: &'a SimpleCrowdfundingOf<T>) -> Self
+    {
+        Self { sale }
+    }
+    fn token_amount(
+        &self,
+        investment: &Investment<T>,
+        share: &DeipAsset<T>,
+    ) -> TokenAmount
+    {
+        let investment_amount = investment.amount.saturated_into::<u128>();
+        let share_amount = share.amount().clone().saturated_into::<u128>();
+        let sale_amount = self.sale.total_amount.0.saturated_into::<u128>();
+        TokenAmount {
             investment_amount,
             share_amount,
             sale_amount
-        },
-    }
-}
-impl<'a, T: Config> ContributionAmount<'a, T> {
-    fn new(
-        investment: &'a Investment<T>,
-        share: &'a DeipAsset<T>,
-        sale: &'a SimpleCrowdfundingOf<T>
-    ) -> Self
-    {
-        init_contribution(investment, share, sale)
-    }
-    fn token_amount(&self) -> u128 {
-        self.token_amount.calc()
+        }
     }
 }
 impl TokenAmount {
@@ -507,9 +503,8 @@ impl TokenAmount {
             / self.sale_amount
     }
 }
-struct ContributionAmount<'a, T: Config> {
+struct ContributionAccept<'a, T: Config> {
     sale: &'a SimpleCrowdfundingOf<T>,
-    token_amount: TokenAmount
 }
 struct TokenAmount {
     investment_amount: u128,
