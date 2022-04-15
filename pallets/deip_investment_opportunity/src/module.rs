@@ -159,27 +159,6 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
-    pub(super) fn collect_funds(sale_id: InvestmentId, amount: DeipAssetBalance<T>) -> Result<(), ()> {
-        SimpleCrowdfundingMapV1::<T>::mutate_exists(sale_id, |sale| -> Result<(), ()> {
-            match sale.as_mut() {
-                Some(s) => s.total_amount.0 = amount.saturating_add(s.total_amount.0),
-                None => return Err(()),
-            }
-            Ok(())
-        })
-    }
-
-    pub(super) fn finish_crowdfunding_by_id(sale_id: InvestmentId) -> Result<(), ()> {
-        match SimpleCrowdfundingMapV1::<T>::try_get(sale_id) {
-            Err(_) => Err(()),
-            Ok(sale) => {
-                Self::update_status(&sale, SimpleCrowdfundingStatus::Finished);
-                Self::process_investments(&sale);
-                Ok(())
-            },
-        }
-    }
-
     pub(super) fn activate_crowdfunding_impl(sale_id: InvestmentId) -> DispatchResult {
         SimpleCrowdfundingMapV1::<T>::mutate_exists(sale_id, |maybe_sale| -> DispatchResult {
             let sale = match maybe_sale.as_mut() {
@@ -271,13 +250,6 @@ impl<T: Config> Pallet<T> {
                 }
             }
         }
-    }
-
-    fn update_status(sale: &SimpleCrowdfundingOf<T>, new_status: SimpleCrowdfundingStatus) {
-        SimpleCrowdfundingMapV1::<T>::mutate_exists(sale.external_id, |maybe_sale| -> () {
-            let sale = maybe_sale.as_mut().expect("we keep collections in sync");
-            sale.status = new_status;
-        });
     }
 
     fn refund(sale: &SimpleCrowdfundingOf<T>) {
@@ -404,12 +376,31 @@ impl<T: Config> Pallet<T> {
             };
         });
 
-        Self::collect_funds(sale_id, amount_to_contribute).expect("collect; already found");
+        // Self::collect_funds(sale_id, amount_to_contribute).expect("collect; already found");
+        let _ = SimpleCrowdfundingMapV1::<T>::mutate_exists(sale_id, |sale| -> Result<(), ()> {
+            match sale.as_mut() {
+                Some(s) => s.total_amount.0 = amount_to_contribute.saturating_add(s.total_amount.0),
+                None => panic!("collect; already found"),
+            }
+            Ok(())
+        });
 
         Self::deposit_event(Event::<T>::Invested(sale_id, account.clone()));
 
         if is_hard_cap_reached {
-            Self::finish_crowdfunding_by_id(sale_id).expect("finish; already found");
+            // Self::finish_crowdfunding_by_id(sale_id).expect("finish; already found");
+            let _ = match SimpleCrowdfundingMapV1::<T>::try_get(sale_id) {
+                Err(_) => panic!("finish; already found"),
+                Ok(sale) => {
+                    // Self::update_status(&sale, SimpleCrowdfundingStatus::Finished);
+                    SimpleCrowdfundingMapV1::<T>::mutate_exists(sale.external_id, |maybe_sale| -> () {
+                        let sale = maybe_sale.as_mut().expect("we keep collections in sync");
+                        sale.status = SimpleCrowdfundingStatus::Finished;
+                    });
+                    Self::process_investments(&sale);
+                    Result::<_, ()>::Ok(())
+                },
+            };
             return Ok(Some(T::DeipInvestmentWeightInfo::invest_hard_cap_reached()).into())
         }
 
@@ -417,13 +408,13 @@ impl<T: Config> Pallet<T> {
     }
 }
 
-trait ContributionT<T: Config>: ContributionAcceptT<T> {}
+pub trait ContributionT<T: Config>: ContributionAcceptT<T> {}
 
 impl<T: Config, U> ContributionT<T> for U
     where U: ContributionAcceptT<T>
 {}
 
-trait ContributionAcceptT<T: Config> {
+pub trait ContributionAcceptT<T: Config> {
     fn accept(
         &self,
         investment: &Investment<T>,
@@ -431,7 +422,7 @@ trait ContributionAcceptT<T: Config> {
         share_remaining: DeipAssetBalance<T>
     ) -> ShareRemaining<T>;
 }
-type ShareRemaining<T> = DeipAssetBalance<T>;
+pub type ShareRemaining<T> = DeipAssetBalance<T>;
 impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
     fn accept(
         &self,
@@ -470,11 +461,11 @@ impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
 }
 
 impl<'a, T: Config> ContributionAccept<'a, T> {
-    fn new(sale: &'a SimpleCrowdfundingOf<T>) -> Self
+    pub fn new(sale: &'a SimpleCrowdfundingOf<T>) -> Self
     {
         Self { sale }
     }
-    fn token_amount(
+    pub fn token_amount(
         &self,
         investment: &Investment<T>,
         share: &DeipAsset<T>,
@@ -491,7 +482,8 @@ impl<'a, T: Config> ContributionAccept<'a, T> {
     }
 }
 impl TokenAmount {
-    fn calc(&self) -> u128 {
+    pub fn calc(&self) -> u128
+    {
         if self.sale_amount.is_zero() { return 0 }
         // similar to frame_support::traits::Imbalance::ration
         // [ investment_amount / x = sale_amount / share_amount ]
@@ -501,10 +493,10 @@ impl TokenAmount {
             / self.sale_amount
     }
 }
-struct ContributionAccept<'a, T: Config> {
+pub struct ContributionAccept<'a, T: Config> {
     sale: &'a SimpleCrowdfundingOf<T>,
 }
-struct TokenAmount {
+pub struct TokenAmount {
     investment_amount: u128,
     share_amount: u128,
     sale_amount: u128

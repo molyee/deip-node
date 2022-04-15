@@ -285,6 +285,32 @@ pub mod pallet {
             Self::finish_crowdfunding_impl(sale_id)
         }
 
+        #[pallet::weight(10_000)]
+        pub fn finish_contribution(
+            origin: OriginFor<T>,
+            sale_id: InvestmentId,
+            share: DeipAsset<T>,
+            contributor: T::AccountId
+        ) -> DispatchResult
+        {
+            ensure_none(origin)?;
+            use crate::module::*;
+
+            let sale = SimpleCrowdfundingMapV1::<T>::get(sale_id).unwrap();
+
+            let investments = InvestmentMapV1::<T>::try_get(sale.external_id)
+                .expect("about to finish, but there are no contributions?");
+
+            if investments.is_empty() {
+                panic!("about to finish, but there are no contributors?")
+            }
+            let (_, ref investment) = investments.iter().skip_while(|(x, _)| x != &contributor).next().unwrap();
+            ContributionAccept::<T>::new(&sale)
+                .accept(investment, &share, share.amount().clone());
+
+            Self::finish_crowdfunding_impl(sale_id)
+        }
+
         /// Allows DAO to invest to an opportunity.
         ///
         /// The origin for this call must be _Signed_.
