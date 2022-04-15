@@ -208,6 +208,7 @@ pub mod pallet {
         SimpleCrowdfundingExpired(InvestmentId),
         /// Event emitted when DAO invested to an opportunity
         Invested(InvestmentId, T::AccountId),
+        HardCapReached(InvestmentId, T::AccountId),
     }
 
     #[doc(hidden)]

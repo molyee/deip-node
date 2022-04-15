@@ -397,7 +397,8 @@ impl<T: Config> Pallet<T> {
                         let sale = maybe_sale.as_mut().expect("we keep collections in sync");
                         sale.status = SimpleCrowdfundingStatus::Finished;
                     });
-                    Self::process_investments(&sale);
+                    // Self::process_investments(&sale);
+                    Self::deposit_event(Event::<T>::HardCapReached(sale_id, account.clone()));
                     Result::<_, ()>::Ok(())
                 },
             };
