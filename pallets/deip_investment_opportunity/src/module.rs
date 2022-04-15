@@ -199,8 +199,8 @@ impl<T: Config> Pallet<T> {
         };
 
         sale.status = SimpleCrowdfundingStatus::Expired;
-
         Self::refund(&sale);
+        SimpleCrowdfundingMapV1::<T>::insert(sale_id, sale);
 
         Ok(None.into())
     }
