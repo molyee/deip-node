@@ -184,7 +184,9 @@ impl<T: Config> Pallet<T> {
 
     pub(super) fn expire_crowdfunding_impl(sale_id: InvestmentId) -> DispatchResultWithPostInfo
     {
-        let mut sale = SimpleCrowdfundingMapV1::<T>::get(sale_id).ok_or(Error::<T>::NotFound)?;
+        let mut sale
+            = SimpleCrowdfundingMapV1::<T>::get(sale_id)
+            .ok_or(Error::<T>::NotFound)?;
 
         match sale.status {
             SimpleCrowdfundingStatus::Expired => {
@@ -205,25 +207,24 @@ impl<T: Config> Pallet<T> {
         Ok(None.into())
     }
 
-    pub(super) fn finish_crowdfunding_impl(sale_id: InvestmentId) -> DispatchResult {
-        SimpleCrowdfundingMapV1::<T>::mutate_exists(sale_id, |maybe_sale| -> DispatchResult {
-            let sale = match maybe_sale.as_mut() {
-                None => return Err(Error::<T>::NotFound.into()),
-                Some(s) => s,
-            };
+    pub(super) fn finish_crowdfunding_impl(sale_id: InvestmentId) -> DispatchResult
+    {
+        let mut sale
+            = SimpleCrowdfundingMapV1::<T>::get(sale_id)
+            .ok_or(Error::<T>::NotFound)?;
 
-            match sale.status {
-                SimpleCrowdfundingStatus::Finished => return Ok(()),
-                SimpleCrowdfundingStatus::Active => (),
-                _ => return Err(Error::<T>::ShouldBeActive.into()),
-            };
+        match sale.status {
+            SimpleCrowdfundingStatus::Finished => return Ok(()),
+            SimpleCrowdfundingStatus::Active => (),
+            _ => return Err(Error::<T>::ShouldBeActive.into()),
+        };
 
-            sale.status = SimpleCrowdfundingStatus::Finished;
+        sale.status = SimpleCrowdfundingStatus::Finished;
 
-            Self::process_investments(sale);
+        Self::process_investments(&sale);
+        SimpleCrowdfundingMapV1::<T>::insert(sale_id, sale);
 
-            Ok(())
-        })
+        Ok(())
     }
 
     pub(super) fn process_investment_opportunities_offchain() {
