@@ -287,7 +287,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(10_000)]
-        pub fn finish_contribution(
+        pub fn accept_contribution(
             origin: OriginFor<T>,
             sale_id: InvestmentId,
             share: DeipAsset<T>,

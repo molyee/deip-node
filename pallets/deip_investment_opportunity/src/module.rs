@@ -182,29 +182,27 @@ impl<T: Config> Pallet<T> {
         })
     }
 
-    pub(super) fn expire_crowdfunding_impl(sale_id: InvestmentId) -> DispatchResultWithPostInfo {
-        SimpleCrowdfundingMapV1::<T>::mutate_exists(sale_id, |maybe_sale| -> DispatchResultWithPostInfo {
-            let sale = match maybe_sale.as_mut() {
-                None => return Err(Error::<T>::NotFound.into()),
-                Some(s) => s,
-            };
+    pub(super) fn expire_crowdfunding_impl(sale_id: InvestmentId) -> DispatchResultWithPostInfo
+    {
+        let mut sale = SimpleCrowdfundingMapV1::<T>::get(sale_id).ok_or(Error::<T>::NotFound)?;
 
-            match sale.status {
-                SimpleCrowdfundingStatus::Expired => return Ok(Some(
-                    T::DeipInvestmentWeightInfo::expire_crowdfunding_already_expired()).into()),
-                SimpleCrowdfundingStatus::Active => ensure!(
-                    pallet_timestamp::Pallet::<T>::get() >= sale.end_time,
-                    Error::<T>::ExpirationWrongState
-                ),
-                _ => return Err(Error::<T>::ShouldBeActive.into()),
-            };
+        match sale.status {
+            SimpleCrowdfundingStatus::Expired => {
+                let weight = T::DeipInvestmentWeightInfo::expire_crowdfunding_already_expired();
+                return Ok(Some(weight).into())
+            },
+            SimpleCrowdfundingStatus::Active => ensure!(
+                pallet_timestamp::Pallet::<T>::get() >= sale.end_time,
+                Error::<T>::ExpirationWrongState
+            ),
+            _ => return Err(Error::<T>::ShouldBeActive)?,
+        };
 
-            sale.status = SimpleCrowdfundingStatus::Expired;
+        sale.status = SimpleCrowdfundingStatus::Expired;
 
-            Self::refund(sale);
+        Self::refund(&sale);
 
-            Ok(None.into())
-        })
+        Ok(None.into())
     }
 
     pub(super) fn finish_crowdfunding_impl(sale_id: InvestmentId) -> DispatchResult {
