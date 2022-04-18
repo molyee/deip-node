@@ -221,7 +221,7 @@ impl<T: Config> Pallet<T> {
 
         sale.status = SimpleCrowdfundingStatus::Finished;
 
-        Self::process_investments(&sale);
+        Self::finish(&sale);
         SimpleCrowdfundingMapV1::<T>::insert(sale_id, sale);
 
         Ok(())
@@ -273,7 +273,7 @@ impl<T: Config> Pallet<T> {
         Self::deposit_event(Event::SimpleCrowdfundingExpired(sale.external_id));
     }
 
-    fn process_investments(sale: &SimpleCrowdfundingOf<T>) {
+    fn finish(sale: &SimpleCrowdfundingOf<T>) {
         let investments = InvestmentMapV1::<T>::try_get(sale.external_id)
             .expect("about to finish, but there are no contributions?");
 
@@ -396,8 +396,8 @@ impl<T: Config> Pallet<T> {
                         let sale = maybe_sale.as_mut().expect("we keep collections in sync");
                         sale.status = SimpleCrowdfundingStatus::Finished;
                     });
-                    // Self::process_investments(&sale);
-                    Self::deposit_event(Event::<T>::HardCapReached(sale_id, account.clone()));
+                    Self::finish(&sale);
+                    // Self::deposit_event(Event::<T>::HardCapReached(sale_id, account.clone()));
                     Result::<_, ()>::Ok(())
                 },
             };

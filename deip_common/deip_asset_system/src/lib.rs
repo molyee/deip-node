@@ -1,9 +1,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+extern crate core;
+
 pub mod asset;
 pub mod investment_opportunity;
 pub mod asset_bus;
 
+use core::num::fmt::Part;
 pub use deip_assets_error::{ReserveError, UnreserveError};
 use frame_support::dispatch::Parameter;
 use sp_runtime::traits::{AtLeast32BitUnsigned, Member};
@@ -59,4 +62,17 @@ pub trait DeipAssetSystem<AccountId, SourceId, InvestmentId>: AssetIdInitT<Self:
         id: InvestmentId,
         amount: Self::Balance,
     ) -> Result<(), UnreserveError<Self::AssetId>>;
+}
+
+pub struct TransferUnit<Id, Data> {
+    id: Id,
+    data: Data
+}
+pub trait TransferUnitT {
+    type Id;
+}
+pub struct Transfer<Unit: TransferUnitT, From, To> {
+    from_: From,
+    to_: To,
+    unit_: TransferUnit<Unit::Id, Unit>,
 }
