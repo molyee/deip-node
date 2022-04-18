@@ -815,6 +815,14 @@ impl deip_asset_system::DeipAssetSystem<AccountId, ProjectId, InvestmentId> for 
         DeipAssets::transfer_from_reserved(from, to, id, amount)
     }
 
+    // fn transfer_from_reserved2<Unit: TransferUnitT>(
+    //     from: InvestmentId,
+    //     to: &AccountId,
+    //     unit: Unit
+    // ) -> Result<(), UnreserveError<Self::AssetId>> {
+    //     DeipAssets::transfer_from_reserved(from, to, id, amount)
+    // }
+
     fn transfer_to_reserved(
         who: &AccountId,
         id: InvestmentId,

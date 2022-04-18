@@ -54,18 +54,18 @@ pub trait DeipAssetSystem<AccountId, SourceId, InvestmentId>: AssetIdInitT<Self:
         amount: Self::Balance,
     ) -> Result<(), UnreserveError<Self::AssetId>>;
 
-    // /// Transfers `amount` of assets `id` owned by account specified with `id` to `who`.
-    // fn transfer_from_reserved2<Unit: TransferUnitT>(
-    //     from: InvestmentId,
-    //     to: &AccountId,
-    //     unit: Unit
-    // ) -> Result<(), UnreserveError<Self::AssetId>>
-    //     where AccountId: TransferTargetT<AccountId>,
-    //           InvestmentId: TransferSourceT<InvestmentId>
-    // {
-    //     Transfer::new(from, to, unit);
-    //     Ok(())
-    // }
+    /// Transfers `amount` of assets `id` owned by account specified with `id` to `who`.
+    fn transfer_from_reserved2<Unit: TransferUnitT>(
+        from: InvestmentId,
+        to: &AccountId,
+        unit: Unit
+    ) -> Result<(), UnreserveError<Self::AssetId>>
+        where AccountId: TransferTargetT<AccountId> + Clone,
+              InvestmentId: TransferSourceT<InvestmentId>
+    {
+        Transfer::new(from, to.clone(), unit).transfer();
+        Ok(())
+    }
 
     /// Transfers `amount` of assets from `who` to account specified by `id`.
     /// Assets should be specified in call to `transactionally_reserve`.
@@ -93,18 +93,29 @@ pub trait TransferUnitT {
 }
 
 #[allow(dead_code)]
-pub struct Transfer<Unit: TransferUnitT, From, To> {
+pub struct Transfer<From, To, Unit: TransferUnitT> {
     from: From,
     to: To,
     unit: TransferUnit<Unit::Id, Unit>,
 }
 
-impl<
-    Unit: TransferUnitT,
+impl
+<
     From: TransferSourceT<From>,
     To: TransferTargetT<To>,
-> TransferT<From, To> for Transfer<Unit, From, To> {
+    Unit: TransferUnitT
+>
+TransferT<From, To> for Transfer<From, To, Unit>
+{
     type Unit = Unit;
+
+    fn new(from: From, to: To, unit: Self::Unit) -> Self {
+        Transfer {
+            from,
+            to,
+            unit: TransferUnit { id: unit.id(), data: unit }
+        }
+    }
 
     fn transfer(self) {
         let Self { from, to, unit } = self;
@@ -112,16 +123,10 @@ impl<
     }
 }
 
-pub trait TransferT<From, To> {
+pub trait TransferT<From, To>: Sized {
     type Unit: TransferUnitT;
 
-    fn new(from: From, to: To, unit: Self::Unit) -> Transfer<Self::Unit, From, To> {
-        Transfer {
-            from,
-            to,
-            unit: TransferUnit { id: unit.id(), data: unit }
-        }
-    }
+    fn new(from: From, to: To, unit: Self::Unit) -> Self;
     fn transfer(self);
 }
 
