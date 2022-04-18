@@ -518,28 +518,28 @@ pub mod pallet {
         }
 
         pub fn transfer_from_reserved(
-            id: DeipInvestmentIdOf<T>,
-            who: &T::AccountId,
-            asset: DeipAssetIdOf<T>,
+            from: DeipInvestmentIdOf<T>,
+            to: &T::AccountId,
+            id: DeipAssetIdOf<T>,
             amount: AssetsBalanceOf<T>,
         ) -> Result<(), deip_assets_error::UnreserveError<DeipAssetIdOf<T>>> {
             use deip_assets_error::UnreserveError;
 
             ensure!(
-                InvestmentMapV1::<T>::contains_key(id.clone()),
+                InvestmentMapV1::<T>::contains_key(from.clone()),
                 UnreserveError::NoSuchInvestment
             );
 
-            let id_account = Self::investment_key(&id);
+            let from = Self::investment_key(&from);
 
             let result = Self::deip_transfer_impl(
-                RawOrigin::Signed(id_account).into(),
-                asset,
-                who.clone(),
+                RawOrigin::Signed(from).into(),
+                id,
+                to.clone(),
                 amount,
             );
             if result.is_err() {
-                return Err(UnreserveError::AssetTransferFailed(asset))
+                return Err(UnreserveError::AssetTransferFailed(id))
             }
 
             Ok(())

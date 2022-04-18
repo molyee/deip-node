@@ -6,7 +6,6 @@ pub mod asset;
 pub mod investment_opportunity;
 pub mod asset_bus;
 
-use core::num::fmt::Part;
 pub use deip_assets_error::{ReserveError, UnreserveError};
 use frame_support::dispatch::Parameter;
 use sp_runtime::traits::{AtLeast32BitUnsigned, Member};
@@ -49,6 +48,14 @@ pub trait DeipAssetSystem<AccountId, SourceId, InvestmentId>: AssetIdInitT<Self:
 
     /// Transfers `amount` of assets `id` owned by account specified with `id` to `who`.
     fn transfer_from_reserved(
+        id: InvestmentId,
+        who: &AccountId,
+        asset: Self::AssetId,
+        amount: Self::Balance,
+    ) -> Result<(), UnreserveError<Self::AssetId>>;
+
+    /// Transfers `amount` of assets `id` owned by account specified with `id` to `who`.
+    fn transfer_from_reserved2(
         id: InvestmentId,
         who: &AccountId,
         asset: Self::AssetId,
