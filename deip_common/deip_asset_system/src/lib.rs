@@ -81,25 +81,37 @@ pub struct TransferUnit<Id, Data> {
     id: Id,
     data: Data
 }
+
 pub trait TransferUnitT {
     type Id;
     fn id(&self) -> Self::Id;
+    fn transfer<
+        From: TransferSourceT<From>,
+        To: TransferTargetT<To>,
+        Unit
+    >(from: From, to: To, unit: Unit);
 }
+
 #[allow(dead_code)]
 pub struct Transfer<Unit: TransferUnitT, From, To> {
     from: From,
     to: To,
     unit: TransferUnit<Unit::Id, Unit>,
 }
-impl
-<
+
+impl<
     Unit: TransferUnitT,
     From: TransferSourceT<From>,
     To: TransferTargetT<To>,
->
-TransferT<From, To> for Transfer<Unit, From, To> {
+> TransferT<From, To> for Transfer<Unit, From, To> {
     type Unit = Unit;
+
+    fn transfer(self) {
+        let Self { from, to, unit } = self;
+        Self::Unit::transfer(from, to, unit);
+    }
 }
+
 pub trait TransferT<From, To> {
     type Unit: TransferUnitT;
 
@@ -110,6 +122,8 @@ pub trait TransferT<From, To> {
             unit: TransferUnit { id: unit.id(), data: unit }
         }
     }
+    fn transfer(self);
 }
+
 pub trait TransferSourceT<Source> {}
 pub trait TransferTargetT<Target> {}
