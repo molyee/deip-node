@@ -54,16 +54,18 @@ pub trait DeipAssetSystem<AccountId, SourceId, InvestmentId>: AssetIdInitT<Self:
         amount: Self::Balance,
     ) -> Result<(), UnreserveError<Self::AssetId>>;
 
-    /// Transfers `amount` of assets `id` owned by account specified with `id` to `who`.
-    fn transfer_from_reserved2<Unit: TransferUnitT>(
-        from: InvestmentId,
-        to: &AccountId,
-        unit: Unit
-    ) -> Result<(), UnreserveError<Self::AssetId>>
-    {
-        Transfer::new(from, to, unit);
-        Ok(())
-    }
+    // /// Transfers `amount` of assets `id` owned by account specified with `id` to `who`.
+    // fn transfer_from_reserved2<Unit: TransferUnitT>(
+    //     from: InvestmentId,
+    //     to: &AccountId,
+    //     unit: Unit
+    // ) -> Result<(), UnreserveError<Self::AssetId>>
+    //     where AccountId: TransferTargetT<AccountId>,
+    //           InvestmentId: TransferSourceT<InvestmentId>
+    // {
+    //     Transfer::new(from, to, unit);
+    //     Ok(())
+    // }
 
     /// Transfers `amount` of assets from `who` to account specified by `id`.
     /// Assets should be specified in call to `transactionally_reserve`.
@@ -89,11 +91,18 @@ pub struct Transfer<Unit: TransferUnitT, From, To> {
     to: To,
     unit: TransferUnit<Unit::Id, Unit>,
 }
-impl<Unit: TransferUnitT, From, To> TransferT<From, To> for Transfer<Unit, From, To> {
+impl
+<
+    Unit: TransferUnitT,
+    From: TransferSourceT<From>,
+    To: TransferTargetT<To>,
+>
+TransferT<From, To> for Transfer<Unit, From, To> {
     type Unit = Unit;
 }
 pub trait TransferT<From, To> {
     type Unit: TransferUnitT;
+
     fn new(from: From, to: To, unit: Self::Unit) -> Transfer<Self::Unit, From, To> {
         Transfer {
             from,
@@ -102,3 +111,5 @@ pub trait TransferT<From, To> {
         }
     }
 }
+pub trait TransferSourceT<Source> {}
+pub trait TransferTargetT<Target> {}
