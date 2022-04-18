@@ -15,53 +15,53 @@ pub trait AssetIdInitT<AssetId> {
     fn asset_id(raw: &[u8]) -> AssetId;
 }
 
-pub trait DeipAssetSystem<AccountId, SourceId, InvestmentId>: AssetIdInitT<Self::AssetId> {
+pub trait DeipAssetSystem<To, SourceId, From>: AssetIdInitT<Self::AssetId> {
     /// The units in which asset balances are recorded.
     type Balance: Member + Parameter + AtLeast32BitUnsigned + Default + Copy;
 
     /// The arithmetic type of asset identifier.
     type AssetId: Member + Parameter + Default + Copy + AsRef<[u8]>;
 
-    fn account_balance(account: &AccountId, asset: &Self::AssetId) -> Self::Balance;
+    fn account_balance(account: &To, asset: &Self::AssetId) -> Self::Balance;
 
     fn total_supply(asset: &Self::AssetId) -> Self::Balance;
 
     fn transactionally_transfer(
-        from: &AccountId,
+        from: &To,
         asset: Self::AssetId,
-        transfers: &[(Self::Balance, AccountId)],
+        transfers: &[(Self::Balance, To)],
     ) -> Result<(), ()>;
 
     /// Tries to transfer assets specified by `shares` from
     /// `account` to a specific balance identified by `id`.
     /// Some collateral fee may be locked from `account`.
     fn transactionally_reserve(
-        account: &AccountId,
-        id: InvestmentId,
+        account: &To,
+        id: From,
         shares: &[(Self::AssetId, Self::Balance)],
         asset: Self::AssetId,
     ) -> Result<(), ReserveError<Self::AssetId>>;
 
     /// Transfers all assets currently owned by `id` to the account, used in
     /// transactionally_reserve, in a transactional way.
-    fn transactionally_unreserve(id: InvestmentId) -> Result<(), UnreserveError<Self::AssetId>>;
+    fn transactionally_unreserve(id: From) -> Result<(), UnreserveError<Self::AssetId>>;
 
     /// Transfers `amount` of assets `id` owned by account specified with `id` to `who`.
     fn transfer_from_reserved(
-        from: InvestmentId,
-        to: &AccountId,
+        from: From,
+        to: &To,
         id: Self::AssetId,
         amount: Self::Balance,
     ) -> Result<(), UnreserveError<Self::AssetId>>;
 
     /// Transfers `amount` of assets `id` owned by account specified with `id` to `who`.
     fn transfer_from_reserved2<Unit: TransferUnitT>(
-        from: InvestmentId,
-        to: &AccountId,
+        from: From,
+        to: &To,
         unit: Unit
     ) -> Result<(), UnreserveError<Self::AssetId>>
-        where InvestmentId: TransferSourceT<AccountId>,
-              AccountId: TransferTargetT<InvestmentId> + Clone,
+        where From: TransferSourceT<To>,
+              To: TransferTargetT<From> + Clone,
     {
         Transfer::new(from, to.clone(), unit).transfer();
         Ok(())
@@ -70,8 +70,8 @@ pub trait DeipAssetSystem<AccountId, SourceId, InvestmentId>: AssetIdInitT<Self:
     /// Transfers `amount` of assets from `who` to account specified by `id`.
     /// Assets should be specified in call to `transactionally_reserve`.
     fn transfer_to_reserved(
-        who: &AccountId,
-        id: InvestmentId,
+        who: &To,
+        id: From,
         amount: Self::Balance,
     ) -> Result<(), UnreserveError<Self::AssetId>>;
 }
@@ -134,5 +134,5 @@ pub trait TransferSourceT<Target: ?Sized + TransferTargetT<Self>> {
     fn into_target(self) -> Target;
 }
 pub trait TransferTargetT<Source: ?Sized + TransferSourceT<Self>> {
-    fn into_source(self) -> Self;
+    fn into_source(self) -> Source;
 }
