@@ -19,7 +19,7 @@ use frame_support::traits::{Get};
 use scale_info::TypeInfo;
 use sp_std::prelude::*;
 use crate::{Config, Error, Event, Call, Pallet};
-use deip_asset_system::{DeipAssetSystem, ReserveError, UnreserveError};
+use deip_asset_system::{DeipAssetSystem, ReserveError, TransferSourceT, TransferT, TransferTargetT, UnreserveError};
 pub use deip_asset_system::investment_opportunity::*;
 pub use deip_asset_system::asset::*;
 use crate::{SimpleCrowdfundingMapV1, InvestmentMapV1};
@@ -47,6 +47,25 @@ pub type Investment<T: Config> = Contribution<
     DeipAssetBalance<T>,
     T::Moment
 >;
+
+// fn x<T: Config>(from: InvestmentId, to: T::AccountId, unit: DeipAsset<T>) {
+//     use deip_asset_system::*;
+//     Transfer::new(from, to, DeipAssetTransfer(unit)).transfer();
+// }
+
+pub struct DeipAssetTransfer<T: Config>(DeipAsset<T>);
+
+impl<T: Config> deip_asset_system::TransferUnitT<T::AccountId> for DeipAssetTransfer<T> {
+    type Id = DeipAssetId<T>;
+
+    fn id(&self) -> Self::Id {
+        *self.0.id()
+    }
+
+    fn transfer(self, from: T::AccountId, to: T::AccountId) {
+        todo!()
+    }
+}
 
 impl<T: Config> Pallet<T> {
     pub(super) fn create_investment_opportunity_impl(
@@ -261,6 +280,15 @@ impl<T: Config> Pallet<T> {
                     contribution.amount,
                 )
                 .unwrap_or_else(|_| panic!("user's asset should be reserved earlier"));
+
+                // let unit = (sale.asset_id, contribution.amount);
+                //
+                // T::transfer_from_reserved2(
+                //     sale.external_id,
+                //     &contribution.owner,
+                //     unit,
+                // )
+                // .unwrap_or_else(|_| panic!("user's asset should be reserved earlier"));
 
                 frame_system::Pallet::<T>::dec_consumers(&contribution.owner);
             }

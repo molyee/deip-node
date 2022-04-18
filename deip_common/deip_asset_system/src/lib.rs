@@ -55,7 +55,7 @@ pub trait DeipAssetSystem<To, SourceId, From>: AssetIdInitT<Self::AssetId> {
     ) -> Result<(), UnreserveError<Self::AssetId>>;
 
     /// Transfers `amount` of assets `id` owned by account specified with `id` to `who`.
-    fn transfer_from_reserved2<Unit: TransferUnitT>(
+    fn transfer_from_reserved2<Unit: TransferUnitT<To>>(
         from: From,
         to: &To,
         unit: Unit
@@ -76,57 +76,44 @@ pub trait DeipAssetSystem<To, SourceId, From>: AssetIdInitT<Self::AssetId> {
     ) -> Result<(), UnreserveError<Self::AssetId>>;
 }
 
-#[allow(dead_code)]
-pub struct TransferUnit<Id, Data> {
-    id: Id,
-    data: Data
-}
-
-pub trait TransferUnitT {
+pub trait TransferUnitT<Account> {
     type Id;
     fn id(&self) -> Self::Id;
-    fn transfer<
-        From: TransferSourceT<To>,
-        To: TransferTargetT<From>,
-        Unit
-    >(from: From, to: To, unit: Unit);
+    fn transfer(self, from: Account, to: Account);
 }
 
 #[allow(dead_code)]
-pub struct Transfer<From, To, Unit: TransferUnitT> {
+pub struct Transfer<From, To, Unit: TransferUnitT<To>> {
     from: From,
     to: To,
-    unit: TransferUnit<Unit::Id, Unit>,
+    unit:  Unit,
 }
 
 impl
 <
     From: TransferSourceT<To>,
     To: TransferTargetT<From>,
-    Unit: TransferUnitT
+    Unit: TransferUnitT<To>
 >
-TransferT<From, To> for Transfer<From, To, Unit>
+TransferT<From, To, Unit> for Transfer<From, To, Unit>
 {
-    type Unit = Unit;
-
-    fn new(from: From, to: To, unit: Self::Unit) -> Self {
+    fn new(from: From, to: To, unit: Unit) -> Self {
         Transfer {
             from,
             to,
-            unit: TransferUnit { id: unit.id(), data: unit }
+            unit
         }
     }
 
     fn transfer(self) {
         let Self { from, to, unit } = self;
-        Self::Unit::transfer(from, to, unit);
+        unit.transfer(from.into_target(), to);
     }
 }
 
-pub trait TransferT<From, To>: Sized {
-    type Unit: TransferUnitT;
-
-    fn new(from: From, to: To, unit: Self::Unit) -> Self;
+pub trait TransferT<From, To, Unit>: Sized
+{
+    fn new(from: From, to: To, unit: Unit) -> Self;
     fn transfer(self);
 }
 
