@@ -60,8 +60,8 @@ pub trait DeipAssetSystem<AccountId, SourceId, InvestmentId>: AssetIdInitT<Self:
         to: &AccountId,
         unit: Unit
     ) -> Result<(), UnreserveError<Self::AssetId>>
-        where AccountId: TransferTargetT<AccountId> + Clone,
-              InvestmentId: TransferSourceT<InvestmentId>
+        where InvestmentId: TransferSourceT<AccountId>,
+              AccountId: TransferTargetT<InvestmentId> + Clone,
     {
         Transfer::new(from, to.clone(), unit).transfer();
         Ok(())
@@ -86,8 +86,8 @@ pub trait TransferUnitT {
     type Id;
     fn id(&self) -> Self::Id;
     fn transfer<
-        From: TransferSourceT<From>,
-        To: TransferTargetT<To>,
+        From: TransferSourceT<To>,
+        To: TransferTargetT<From>,
         Unit
     >(from: From, to: To, unit: Unit);
 }
@@ -101,8 +101,8 @@ pub struct Transfer<From, To, Unit: TransferUnitT> {
 
 impl
 <
-    From: TransferSourceT<From>,
-    To: TransferTargetT<To>,
+    From: TransferSourceT<To>,
+    To: TransferTargetT<From>,
     Unit: TransferUnitT
 >
 TransferT<From, To> for Transfer<From, To, Unit>
@@ -130,5 +130,9 @@ pub trait TransferT<From, To>: Sized {
     fn transfer(self);
 }
 
-pub trait TransferSourceT<Source> {}
-pub trait TransferTargetT<Target> {}
+pub trait TransferSourceT<Target: ?Sized + TransferTargetT<Self>> {
+    fn into_target(self) -> Target;
+}
+pub trait TransferTargetT<Source: ?Sized + TransferSourceT<Self>> {
+    fn into_source(self) -> Self;
+}
