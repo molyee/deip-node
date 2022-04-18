@@ -1,6 +1,5 @@
 #![allow(type_alias_bounds)]
 
-use std::detect::__is_feature_detected::sha;
 use sp_runtime::{
     traits::{AtLeast32BitUnsigned, Saturating, Zero},
     SaturatedConversion,
@@ -47,25 +46,6 @@ pub type Investment<T: Config> = Contribution<
     DeipAssetBalance<T>,
     T::Moment
 >;
-
-// fn x<T: Config>(from: InvestmentId, to: T::AccountId, unit: DeipAsset<T>) {
-//     use deip_asset_system::*;
-//     Transfer::new(from, to, DeipAssetTransfer(unit)).transfer();
-// }
-
-pub struct DeipAssetTransfer<T: Config>(DeipAsset<T>);
-
-impl<T: Config> deip_asset_system::TransferUnitT<T::AccountId> for DeipAssetTransfer<T> {
-    type Id = DeipAssetId<T>;
-
-    fn id(&self) -> Self::Id {
-        *self.0.id()
-    }
-
-    fn transfer(self, from: T::AccountId, to: T::AccountId) {
-        todo!()
-    }
-}
 
 impl<T: Config> Pallet<T> {
     pub(super) fn create_investment_opportunity_impl(

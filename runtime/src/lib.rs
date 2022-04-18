@@ -55,6 +55,7 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 
 pub mod deip_account;
+mod asset_transfer;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -814,14 +815,6 @@ impl deip_asset_system::DeipAssetSystem<AccountId, ProjectId, InvestmentId> for 
     ) -> Result<(), UnreserveError<Self::AssetId>> {
         DeipAssets::transfer_from_reserved(from, to, id, amount)
     }
-
-    // fn transfer_from_reserved2<Unit: TransferUnitT>(
-    //     from: InvestmentId,
-    //     to: &AccountId,
-    //     unit: Unit
-    // ) -> Result<(), UnreserveError<Self::AssetId>> {
-    //     DeipAssets::transfer_from_reserved(from, to, id, amount)
-    // }
 
     fn transfer_to_reserved(
         who: &AccountId,
