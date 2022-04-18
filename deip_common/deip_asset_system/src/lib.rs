@@ -61,11 +61,7 @@ pub trait DeipAssetSystem<AccountId, SourceId, InvestmentId>: AssetIdInitT<Self:
         unit: Unit
     ) -> Result<(), UnreserveError<Self::AssetId>>
     {
-        let transfer = Transfer {
-            from,
-            to,
-            unit: TransferUnit { id: unit.id(), data: unit }
-        };
+        Transfer::new(from, to, unit);
         Ok(())
     }
 
@@ -78,6 +74,7 @@ pub trait DeipAssetSystem<AccountId, SourceId, InvestmentId>: AssetIdInitT<Self:
     ) -> Result<(), UnreserveError<Self::AssetId>>;
 }
 
+#[allow(dead_code)]
 pub struct TransferUnit<Id, Data> {
     id: Id,
     data: Data
@@ -86,8 +83,22 @@ pub trait TransferUnitT {
     type Id;
     fn id(&self) -> Self::Id;
 }
+#[allow(dead_code)]
 pub struct Transfer<Unit: TransferUnitT, From, To> {
     from: From,
     to: To,
     unit: TransferUnit<Unit::Id, Unit>,
+}
+impl<Unit: TransferUnitT, From, To> TransferT<From, To> for Transfer<Unit, From, To> {
+    type Unit = Unit;
+}
+pub trait TransferT<From, To> {
+    type Unit: TransferUnitT;
+    fn new(from: From, to: To, unit: Self::Unit) -> Transfer<Self::Unit, From, To> {
+        Transfer {
+            from,
+            to,
+            unit: TransferUnit { id: unit.id(), data: unit }
+        }
+    }
 }
