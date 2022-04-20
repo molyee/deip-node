@@ -764,6 +764,7 @@ impl pallet_deip_investment_opportunity::Config for Runtime {
     type DeipAccountId = deip_account::DeipAccountId<Self::AccountId>;
     type MaxInvestmentShares = MaxInvestmentShares;
     type SourceId = ProjectId;
+    type AssetTransfer = ();
 }
 
 impl deip_asset_system::AssetIdInitT<DeipAssetId> for Runtime {

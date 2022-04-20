@@ -18,7 +18,7 @@ use frame_support::traits::{Get};
 use scale_info::TypeInfo;
 use sp_std::prelude::*;
 use crate::{Config, Error, Event, Call, Pallet};
-use deip_asset_system::{DeipAssetSystem, ReserveError, TransferSourceT, TransferT, TransferTargetT, UnreserveError};
+use deip_asset_system::{DeipAssetSystem, ReserveError, UnreserveError};
 pub use deip_asset_system::investment_opportunity::*;
 pub use deip_asset_system::asset::*;
 use crate::{SimpleCrowdfundingMapV1, InvestmentMapV1};
@@ -46,6 +46,18 @@ pub type Investment<T: Config> = Contribution<
     DeipAssetBalance<T>,
     T::Moment
 >;
+
+use deip_asset_system::{TransferUnitT, TransferSourceT, TransferT, TransferTargetT, };
+
+impl<T: Config, Unit: TransferUnitT<T::AccountId>> Module<Unit, T::AssetTransfer> for T {}
+
+pub trait Module<Unit, Transfer> {
+    fn reserve(unit: Unit) {}
+    fn commit(unit: Unit) {}
+    fn rollback(unit: Unit) {}
+}
+
+pub struct Reserve {}
 
 impl<T: Config> Pallet<T> {
     pub(super) fn create_investment_opportunity_impl(

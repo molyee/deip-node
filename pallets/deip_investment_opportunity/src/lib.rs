@@ -87,6 +87,8 @@ pub mod pallet {
 
         type SourceId: Member + Parameter;
 
+        type AssetTransfer;
+
     }
 
     use frame_support::traits::StorageVersion;

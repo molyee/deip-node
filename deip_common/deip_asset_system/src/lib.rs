@@ -55,7 +55,7 @@ pub trait DeipAssetSystem<To, SourceId, From>: AssetIdInitT<Self::AssetId> {
     ) -> Result<(), UnreserveError<Self::AssetId>>;
 
     /// Transfers `amount` of assets `id` owned by account specified with `id` to `who`.
-    fn transfer_from_reserved2<Unit: TransferUnitT<To>>(
+    fn transfer<Unit: TransferUnitT<To>>(
         from: From,
         to: &To,
         unit: Unit
