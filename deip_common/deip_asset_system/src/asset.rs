@@ -7,6 +7,10 @@ use frame_support::{RuntimeDebug};
 use serde::{self, Serialize, Deserialize};
 use scale_info::TypeInfo;
 
+pub trait GenericAssetT<Id, Payload> {}
+pub struct GenericAsset<Id, Payload>(pub Id, pub Payload) where Self: GenericAssetT<Id, Payload>;
+impl<Id, Payload> GenericAssetT<Id, Payload> for GenericAsset<Id, Payload> {}
+
 #[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
