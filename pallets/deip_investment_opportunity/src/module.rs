@@ -49,7 +49,7 @@ pub type Investment<T: Config> = Contribution<
 
 use deip_asset_system::{TransferUnitT, TransferSourceT, TransferT, TransferTargetT, };
 
-impl<T: Config, Unit: TransferUnitT<T::AccountId>> Module<Unit, T::AssetTransfer> for T {}
+// impl<T: Config, Unit: TransferUnitT<T::AccountId>> Module<Unit, T::AssetTransfer> for T {}
 
 pub trait Module<Unit, Transfer> {
     fn reserve(unit: Unit) {}

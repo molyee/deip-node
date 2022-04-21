@@ -41,7 +41,8 @@ pub mod pallet {
         Get,
         IsSubType,
         UnfilteredDispatchable,
-        StoredMap
+        StoredMap,
+        fungibles,
     };
 
     use sp_std::{
@@ -87,8 +88,7 @@ pub mod pallet {
 
         type SourceId: Member + Parameter;
 
-        type AssetTransfer;
-
+        type AssetTransfer: fungibles::Transfer<Self::AccountId>;
     }
 
     use frame_support::traits::StorageVersion;

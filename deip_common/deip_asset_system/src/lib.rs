@@ -55,7 +55,7 @@ pub trait DeipAssetSystem<To, SourceId, From>: AssetIdInitT<Self::AssetId> {
     ) -> Result<(), UnreserveError<Self::AssetId>>;
 
     /// Transfers `amount` of assets `id` owned by account specified with `id` to `who`.
-    fn transfer<Unit: TransferUnitT<To>>(
+    fn transfer<Unit: TransferUnitT<To, ()>>(
         from: From,
         to: &To,
         unit: Unit
@@ -63,7 +63,7 @@ pub trait DeipAssetSystem<To, SourceId, From>: AssetIdInitT<Self::AssetId> {
         where From: TransferSourceT<To>,
               To: TransferTargetT<From> + Clone,
     {
-        Transfer::new(from, to.clone(), unit).transfer();
+        Transfer::new(from, to.clone()).transfer(unit);
         Ok(())
     }
 
@@ -76,43 +76,40 @@ pub trait DeipAssetSystem<To, SourceId, From>: AssetIdInitT<Self::AssetId> {
     ) -> Result<(), UnreserveError<Self::AssetId>>;
 }
 
-pub trait TransferUnitT<Account> {
+pub trait TransferUnitT<Account, Transfer> {
     fn transfer(self, from: Account, to: Account);
 }
 
 #[allow(dead_code)]
-pub struct Transfer<From, To, Unit: TransferUnitT<To>> {
+pub struct Transfer<From, To> {
     from: From,
     to: To,
-    unit: Unit,
 }
 
 impl
 <
     From: TransferSourceT<To>,
     To: TransferTargetT<From>,
-    Unit: TransferUnitT<To>
 >
-TransferT<From, To, Unit> for Transfer<From, To, Unit>
+TransferT<From, To> for Transfer<From, To>
 {
-    fn new(from: From, to: To, unit: Unit) -> Self {
+    fn new(from: From, to: To) -> Self {
         Transfer {
             from,
             to,
-            unit
         }
     }
 
-    fn transfer(self) {
-        let Self { from, to, unit } = self;
+    fn transfer<Unit: TransferUnitT<To, Impl>, Impl>(self, unit: Unit) {
+        let Self { from, to } = self;
         unit.transfer(from.into_target(), to);
     }
 }
 
-pub trait TransferT<From, To, Unit>: Sized
+pub trait TransferT<From, To>: Sized
 {
-    fn new(from: From, to: To, unit: Unit) -> Self;
-    fn transfer(self);
+    fn new(from: From, to: To) -> Self;
+    fn transfer<Unit: TransferUnitT<To, Impl>, Impl>(self, unit: Unit);
 }
 
 pub trait TransferSourceT<Target: ?Sized + TransferTargetT<Self>> {
