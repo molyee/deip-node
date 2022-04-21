@@ -77,8 +77,6 @@ pub trait DeipAssetSystem<To, SourceId, From>: AssetIdInitT<Self::AssetId> {
 }
 
 pub trait TransferUnitT<Account> {
-    // type Id;
-    // fn id(&self) -> Self::Id;
     fn transfer(self, from: Account, to: Account);
 }
 
@@ -86,7 +84,7 @@ pub trait TransferUnitT<Account> {
 pub struct Transfer<From, To, Unit: TransferUnitT<To>> {
     from: From,
     to: To,
-    unit:  Unit,
+    unit: Unit,
 }
 
 impl
