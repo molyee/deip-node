@@ -9,15 +9,41 @@ use serde::{self, Serialize, Deserialize};
 use scale_info::TypeInfo;
 
 use crate::{TransferUnitT};
-use frame_support::traits::fungibles::Transfer;
+use frame_support::traits::fungibles::{Transfer, Inspect};
+use sp_std::marker::PhantomData;
 
-pub trait GenericAssetT<Id, Payload> {}
-pub struct GenericAsset<Id, Payload>(pub Id, pub Payload) where Self: GenericAssetT<Id, Payload>;
-impl<Id, Payload> GenericAssetT<Id, Payload> for GenericAsset<Id, Payload> {}
+pub trait GenericAssetT<Id, Payload, Account, Transfer>: TransferUnitT<Account, Transfer> + Sized {
+    fn new<Closure: FnOnce() -> Self>(closure: Closure) -> Self {
+        closure()
+    }
+}
 
-struct GenericFToken<Id, Balance>(GenericAsset<Id, Balance>);
+impl<X, Id, Payload, Account, Transfer>
+    GenericAssetT<Id, Payload, Account, Transfer>
+    for X
+    where X: TransferUnitT<Account, Transfer> {}
 
-impl<T: Transfer<Account>, Account> TransferUnitT<Account, T> for GenericFToken<T::AssetId, T::Balance> {
+pub struct GenericAsset
+    <Id, Payload, Account, Transfer>
+    (pub Id, pub Payload, PhantomData<(Account, Transfer)>)
+    where Self: GenericAssetT<Id, Payload, Account, Transfer>;
+
+impl<Account, Transfer, Id, Payload>
+    TransferUnitT<Account, Transfer>
+    for GenericAsset<Id, Payload, Account, Transfer>
+{
+    fn transfer(self, _from: Account, _to: Account) {}
+}
+
+pub struct GenericFToken // type name
+    <Account, T: Inspect<Account>> // type template
+    (GenericAsset<T::AssetId, T::Balance, Account, T>) // type structure
+    where Self: GenericAssetT<T::AssetId, T::Balance, Account, T>; // type class/signature
+
+impl<Account, T: Transfer<Account>>
+    TransferUnitT<Account, T>
+    for GenericFToken<Account, T>
+{
     fn transfer(self, from: Account, to: Account) {
         T::transfer(
             self.0.0,

@@ -62,7 +62,7 @@ pub mod pallet {
     use crate::module::{InvestmentId, FundingModelOf, DeipAsset, DeipAssetBalance, DeipAssetId};
 
     use crate::weights::WeightInfo;
-    use deip_asset_system::DeipAssetSystem;
+    use deip_asset_system::{DeipAssetSystem, TransferUnitT};
     use deip_transaction_ctx::{PortalCtxT, TransactionCtxId};
 
     /// Configuration trait
@@ -88,7 +88,8 @@ pub mod pallet {
 
         type SourceId: Member + Parameter;
 
-        type AssetTransfer: fungibles::Transfer<Self::AccountId>;
+        type AssetTransferImpl: fungibles::Transfer<Self::AccountId>;
+        type AssetTransfer: TransferUnitT<Self::AccountId, Self::AssetTransferImpl>;
     }
 
     use frame_support::traits::StorageVersion;

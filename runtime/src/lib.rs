@@ -757,6 +757,8 @@ impl pallet_deip::Config for Runtime {
     type MaxNdaParties = MaxNdaParties;
 }
 
+use deip_asset_system::asset::GenericFToken;
+
 impl pallet_deip_investment_opportunity::Config for Runtime {
     type DeipInvestmentWeightInfo = pallet_deip_investment_opportunity::weights::Weights<Self>;
     type Event = Event;
@@ -764,7 +766,8 @@ impl pallet_deip_investment_opportunity::Config for Runtime {
     type DeipAccountId = deip_account::DeipAccountId<Self::AccountId>;
     type MaxInvestmentShares = MaxInvestmentShares;
     type SourceId = ProjectId;
-    type AssetTransfer = Assets;
+    type AssetTransferImpl = Assets;
+    type AssetTransfer = GenericFToken<Self::AccountId, Assets>;
 }
 
 impl deip_asset_system::AssetIdInitT<DeipAssetId> for Runtime {
