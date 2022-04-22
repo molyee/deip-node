@@ -9,7 +9,7 @@ use serde::{self, Serialize, Deserialize};
 use scale_info::TypeInfo;
 
 use crate::{TransferUnitT};
-use frame_support::traits::fungibles::{Transfer, Inspect};
+use frame_support::traits::fungibles;
 use sp_std::marker::PhantomData;
 
 pub trait GenericAssetT<Id, Payload, Account, Transfer>: TransferUnitT<Account, Transfer> + Sized {
@@ -36,16 +36,16 @@ impl<Id, Payload, Account, Transfer>
 }
 
 pub struct GenericFToken // type name
-    <Account, T: Inspect<Account>> // type template
+    <Account, T: fungibles::Inspect<Account>> // type template
     (GenericAsset<T::AssetId, T::Balance, Account, T>) // type structure
     where Self: GenericAssetT<T::AssetId, T::Balance, Account, T>; // type class/signature
 
-impl<Account, T: Transfer<Account>>
-    TransferUnitT<Account, T>
-    for GenericFToken<Account, T>
+impl<Account, Transfer: fungibles::Transfer<Account>>
+    TransferUnitT<Account, Transfer>
+    for GenericFToken<Account, Transfer>
 {
     fn transfer(self, from: Account, to: Account) {
-        T::transfer(
+        Transfer::transfer(
             self.0.0,
             &from,
             &to,
