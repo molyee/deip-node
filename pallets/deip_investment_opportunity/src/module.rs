@@ -468,6 +468,14 @@ impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
             return share_remains
         }
 
+        use deip_asset_system::{Transfer, TransferT, asset::{GenericAssetT, GenericFToken, GenericAsset}};
+        // use deip_asset_system::asset::;
+
+        Transfer::new(
+            self.sale.external_id,
+            &investment.owner
+        ).transfer(T::Asset::new(*share.id(), token_amount));
+
         T::transfer_from_reserved(
             self.sale.external_id,
             &investment.owner,

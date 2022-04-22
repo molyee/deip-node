@@ -11,22 +11,30 @@ use scale_info::TypeInfo;
 use crate::{TransferUnitT};
 use frame_support::traits::fungibles;
 use sp_std::marker::PhantomData;
+use sp_std::default::Default;
 
 pub trait GenericAssetT<Id, Payload, Account, Transfer>: TransferUnitT<Account, Transfer> + Sized {
-    fn new<Closure: FnOnce() -> Self>(closure: Closure) -> Self {
-        closure()
-    }
+    fn new(id: Id, payload: Payload) -> Self;
 }
 
-impl<Id, Payload, Account, Transfer, X>
-    GenericAssetT<Id, Payload, Account, Transfer>
-    for X
-    where X: TransferUnitT<Account, Transfer> {}
+// impl<Id, Payload, Account, Transfer, X>
+//     GenericAssetT<Id, Payload, Account, Transfer>
+//     for X
+//     where X: TransferUnitT<Account, Transfer> {}
 
 pub struct GenericAsset
     <Id, Payload, Account, Transfer>
-    (pub Id, pub Payload, PhantomData<(Account, Transfer)>)
+    (Id, Payload, PhantomData<(Account, Transfer)>)
     where Self: GenericAssetT<Id, Payload, Account, Transfer>;
+
+impl<Id, Payload, Account, Transfer>
+    GenericAssetT<Id, Payload, Account, Transfer>
+    for GenericAsset<Id, Payload, Account, Transfer>
+{
+    fn new(id: Id, payload: Payload) -> Self {
+        Self(id, payload, <_>::default())
+    }
+}
 
 impl<Id, Payload, Account, Transfer>
     TransferUnitT<Account, Transfer>
@@ -39,6 +47,15 @@ pub struct GenericFToken // type name
     <Account, T: fungibles::Inspect<Account>> // type template
     (GenericAsset<T::AssetId, T::Balance, Account, T>) // type structure
     where Self: GenericAssetT<T::AssetId, T::Balance, Account, T>; // type class/signature
+
+impl<Account, T: fungibles::Transfer<Account>>
+    GenericAssetT<T::AssetId, T::Balance, Account, T>
+    for GenericFToken<Account, T>
+{
+    fn new(id: T::AssetId, payload: T::Balance) -> Self {
+        Self(GenericAsset::new(id, payload))
+    }
+}
 
 impl<Account, Transfer: fungibles::Transfer<Account>>
     TransferUnitT<Account, Transfer>
