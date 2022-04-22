@@ -16,6 +16,7 @@ use frame_support::dispatch::{DispatchResult, DispatchResultWithPostInfo};
 use frame_support::log::{debug};
 use frame_support::traits::{Get};
 use scale_info::TypeInfo;
+use sp_core::H160;
 use sp_std::prelude::*;
 use crate::{Config, Error, Event, Call, Pallet};
 use deip_asset_system::{DeipAssetSystem, ReserveError, UnreserveError};
@@ -472,8 +473,8 @@ impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
         // use deip_asset_system::asset::;
 
         Transfer::new(
-            self.sale.external_id,
-            &investment.owner
+            TransferSource(self.sale.external_id, Default::default()),
+            TransferTarget(investment.owner.clone(), Default::default()),
         // ).transfer(T::Asset::new(*share.id(), token_amount));
         ).transfer(T::Asset::new(Default::default(), Default::default()));
 
@@ -486,6 +487,27 @@ impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
         .unwrap_or_else(|_| panic!("Required token_amount should be reserved"));
 
         share_remains - token_amount
+    }
+}
+
+use sp_std::marker::PhantomData;
+
+pub struct TransferSource<T>(InvestmentId, PhantomData<T>);
+
+impl<T: Config> TransferSourceT<TransferTarget<T>> for TransferSource<T> {
+    fn into_target(self) -> TransferTarget<T> {
+        let entropy =
+            (b"deip/investments/", self.0.as_bytes()).using_encoded(sp_io::hashing::blake2_256);
+        let x = T::AccountId::decode(&mut &entropy[..]).unwrap_or_default();
+        TransferTarget(x, Default::default())
+    }
+}
+
+pub struct TransferTarget<T: Config>(T::AccountId, PhantomData<T>);
+
+impl<T: Config> TransferTargetT<TransferSource<T>> for TransferTarget<T> {
+    fn into_source(self) -> TransferSource<T> {
+        todo!()
     }
 }
 
