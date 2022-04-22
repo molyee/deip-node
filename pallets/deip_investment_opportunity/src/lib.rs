@@ -89,8 +89,10 @@ pub mod pallet {
         type SourceId: Member + Parameter;
 
         type AssetTransfer: fungibles::Transfer<Self::AccountId>;
+        type AssetId: Default;
         type Asset: GenericAssetT<
-            <Self::AssetTransfer as fungibles::Inspect<Self::AccountId>>::AssetId,
+            // <Self::AssetTransfer as fungibles::Inspect<Self::AccountId>>::AssetId,
+            <Self as Config>::AssetId,
             <Self::AssetTransfer as fungibles::Inspect<Self::AccountId>>::Balance,
             Self::AccountId,
             Self::AssetTransfer

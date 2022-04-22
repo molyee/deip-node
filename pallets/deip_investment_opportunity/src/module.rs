@@ -474,7 +474,8 @@ impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
         Transfer::new(
             self.sale.external_id,
             &investment.owner
-        ).transfer(T::Asset::new(*share.id(), token_amount));
+        // ).transfer(T::Asset::new(*share.id(), token_amount));
+        ).transfer(T::Asset::new(Default::default(), Default::default()));
 
         T::transfer_from_reserved(
             self.sale.external_id,

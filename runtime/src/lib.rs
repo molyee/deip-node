@@ -758,6 +758,7 @@ impl pallet_deip::Config for Runtime {
 }
 
 use deip_asset_system::asset::GenericFToken;
+use frame_support::traits::fungibles;
 
 impl pallet_deip_investment_opportunity::Config for Runtime {
     type DeipInvestmentWeightInfo = pallet_deip_investment_opportunity::weights::Weights<Self>;
@@ -767,6 +768,7 @@ impl pallet_deip_investment_opportunity::Config for Runtime {
     type MaxInvestmentShares = MaxInvestmentShares;
     type SourceId = ProjectId;
     type AssetTransfer = Assets;
+    type AssetId = <Assets as fungibles::Inspect<Self::AccountId>>::AssetId;
     type Asset = GenericFToken<Self::AccountId, Assets>;
 }
 

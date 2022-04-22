@@ -17,11 +17,6 @@ pub trait GenericAssetT<Id, Payload, Account, Transfer>: TransferUnitT<Account, 
     fn new(id: Id, payload: Payload) -> Self;
 }
 
-// impl<Id, Payload, Account, Transfer, X>
-//     GenericAssetT<Id, Payload, Account, Transfer>
-//     for X
-//     where X: TransferUnitT<Account, Transfer> {}
-
 pub struct GenericAsset
     <Id, Payload, Account, Transfer>
     (Id, Payload, PhantomData<(Account, Transfer)>)
