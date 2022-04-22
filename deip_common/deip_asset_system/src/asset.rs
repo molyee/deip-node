@@ -18,7 +18,7 @@ pub trait GenericAssetT<Id, Payload, Account, Transfer>: TransferUnitT<Account, 
     }
 }
 
-impl<X, Id, Payload, Account, Transfer>
+impl<Id, Payload, Account, Transfer, X>
     GenericAssetT<Id, Payload, Account, Transfer>
     for X
     where X: TransferUnitT<Account, Transfer> {}
@@ -28,7 +28,7 @@ pub struct GenericAsset
     (pub Id, pub Payload, PhantomData<(Account, Transfer)>)
     where Self: GenericAssetT<Id, Payload, Account, Transfer>;
 
-impl<Account, Transfer, Id, Payload>
+impl<Id, Payload, Account, Transfer>
     TransferUnitT<Account, Transfer>
     for GenericAsset<Id, Payload, Account, Transfer>
 {
