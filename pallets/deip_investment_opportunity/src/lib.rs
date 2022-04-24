@@ -59,7 +59,7 @@ pub mod pallet {
     };
 
     use sp_core::H256;
-    use crate::module::{InvestmentId, FundingModelOf, DeipAsset, DeipAssetBalance, DeipAssetId, TransferTarget};
+    use crate::module::{InvestmentId, FundingModelOf, DeipAsset, DeipAssetBalance, DeipAssetId};
 
     use crate::weights::WeightInfo;
     use deip_asset_system::{DeipAssetSystem, TransferUnitT, asset::GenericAssetT};
@@ -90,14 +90,13 @@ pub mod pallet {
 
         type AssetTransfer: fungibles::Transfer<Self::AccountId>;
         type AssetId: Default;
-        type Asset:
-            GenericAssetT<
+        type Asset: GenericAssetT<
                 <Self as Config>::AssetId,
                 <Self::AssetTransfer as fungibles::Inspect<Self::AccountId>>::Balance,
-                TransferTarget<Self>,
+                Self::AccountId,
                 Self::AssetTransfer
-            > +
-            TransferUnitT<TransferTarget<Self>, Self::AssetTransfer>;
+            >
+            + TransferUnitT<Self::AccountId, Self::AssetTransfer>;
     }
 
     use frame_support::traits::StorageVersion;

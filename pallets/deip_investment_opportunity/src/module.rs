@@ -470,13 +470,12 @@ impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
         }
 
         use deip_asset_system::{Transfer, TransferT, asset::{GenericAssetT, GenericFToken, GenericAsset}};
-        // use deip_asset_system::asset::;
 
-        Transfer::new(
-            TransferSource(self.sale.external_id, Default::default()),
-            TransferTarget(investment.owner.clone(), Default::default()),
-        // ).transfer(T::Asset::new(*share.id(), token_amount));
-        ).transfer(T::Asset::new(Default::default(), Default::default()));
+        T::Asset::new(Default::default(), Default::default())
+            .transfer(
+                investment_key::<T>(self.sale.external_id.as_bytes()),
+                investment.owner.clone()
+            );
 
         T::transfer_from_reserved(
             self.sale.external_id,
@@ -490,25 +489,10 @@ impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
     }
 }
 
-use sp_std::marker::PhantomData;
-
-pub struct TransferSource<T>(InvestmentId, PhantomData<T>);
-
-impl<T: Config> TransferSourceT<TransferTarget<T>> for TransferSource<T> {
-    fn into_target(self) -> TransferTarget<T> {
-        let entropy =
-            (b"deip/investments/", self.0.as_bytes()).using_encoded(sp_io::hashing::blake2_256);
-        let x = T::AccountId::decode(&mut &entropy[..]).unwrap_or_default();
-        TransferTarget(x, Default::default())
-    }
-}
-
-pub struct TransferTarget<T: Config>(T::AccountId, PhantomData<T>);
-
-impl<T: Config> TransferTargetT<TransferSource<T>> for TransferTarget<T> {
-    fn into_source(self) -> TransferSource<T> {
-        todo!()
-    }
+pub fn investment_key<T: Config>(id: &[u8]) -> T::AccountId {
+    let entropy =
+        (b"deip/investments/", id).using_encoded(sp_io::hashing::blake2_256);
+    T::AccountId::decode(&mut &entropy[..]).unwrap_or_default()
 }
 
 impl<'a, T: Config> ContributionAccept<'a, T> {

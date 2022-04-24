@@ -769,7 +769,11 @@ impl pallet_deip_investment_opportunity::Config for Runtime {
     type SourceId = ProjectId;
     type AssetTransfer = Assets;
     type AssetId = <Assets as fungibles::Inspect<Self::AccountId>>::AssetId;
-    type Asset = GenericFToken<Self::AccountId, Assets>;
+    type Asset = GenericFToken<
+        // pallet_deip_investment_opportunity::module::TransferTarget<Self>,
+        Self::AccountId,
+        Assets
+    >;
 }
 
 impl deip_asset_system::AssetIdInitT<DeipAssetId> for Runtime {
