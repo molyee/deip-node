@@ -29,3 +29,7 @@ The Asset pallet is a wrapper over substrate `pallet_assets` that contains some 
 ## [Uniques Pallet](../pallets/deip_uniques/README.md)
 
 The Uniques pallet is a wrapper over substrate `pallet_uniques` that contains some adapter functions for DEIP types
+
+## [Council Pallet](../pallets/deip_council/README.md)
+
+The Council pallet provides operations for authorized blockchain governance and executing runtime updgrades
