@@ -89,10 +89,11 @@ pub mod pallet {
         type SourceId: Member + Parameter;
 
         type AssetTransfer: fungibles::Transfer<Self::AccountId>;
-        type AssetId: Default;
+        type AssetId: Default + AtLeast32BitUnsigned + Clone + Parameter + Member + Copy;
+        type AssetBalance: Default + AtLeast32BitUnsigned + Clone + Parameter + Member + Copy;
         type Asset: GenericAssetT<
                 <Self as Config>::AssetId,
-                <Self::AssetTransfer as fungibles::Inspect<Self::AccountId>>::Balance,
+                <Self as Config>::AssetBalance,
                 Self::AccountId,
                 Self::AssetTransfer
             >
@@ -101,6 +102,8 @@ pub mod pallet {
 
     use frame_support::traits::StorageVersion;
     use frame_support::dispatch::GetStorageVersion;
+    use sp_runtime::traits::AtLeast32BitUnsigned;
+
     pub const V1: StorageVersion = StorageVersion::new(1);
 
     #[doc(hidden)]

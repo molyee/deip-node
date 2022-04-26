@@ -31,20 +31,24 @@ pub type DeipAssetId<T: Config> =
 pub type DeipAssetBalance<T: Config> =
     <T as DeipAssetSystem<T::AccountId, T::SourceId, InvestmentId>>::Balance;
 
-pub type DeipAsset<T: Config> = Asset<DeipAssetId<T>, DeipAssetBalance<T>>;
+pub type DeipAsset<T: Config> = Asset<<T as Config>::AssetId, T::AssetBalance>;
+// pub type DeipAsset<T: Config> = Asset<DeipAssetId<T>, DeipAssetBalance<T>>;
 
 pub type FundingModelOf<T: Config> = FundingModel<T::Moment, DeipAsset<T>>;
 
 pub type SimpleCrowdfundingOf<T: Config> = SimpleCrowdfunding<
     T::Moment,
-    DeipAssetId<T>,
-    DeipAssetBalance<T>,
+    // DeipAssetId<T>,
+    <T as Config>::AssetId,
+    // DeipAssetBalance<T>,
+    T::AssetBalance,
     TransactionCtxId<<T as Config>::TransactionCtx>,
 >;
 
 pub type Investment<T: Config> = Contribution<
     T::AccountId,
-    DeipAssetBalance<T>,
+    // DeipAssetBalance<T>,
+    T::AssetBalance,
     T::Moment
 >;
 
@@ -136,21 +140,21 @@ impl<T: Config> Pallet<T> {
             Error::<T>::AlreadyExists
         );
 
-        if let Err(e) = T::transactionally_reserve(
-            &account,
-            external_id,
-            &shares_to_reserve,
-            *asset_id,
-        ) {
-            match e {
-                ReserveError::<DeipAssetId<T>>::NotEnoughBalance =>
-                    return Err(Error::<T>::BalanceIsNotEnough.into()),
-                ReserveError::<DeipAssetId<T>>::AssetTransferFailed(_) =>
-                    return Err(Error::<T>::FailedToReserveAsset.into()),
-                ReserveError::<DeipAssetId<T>>::AlreadyReserved =>
-                    return Err(Error::<T>::AlreadyExists.into()),
-            };
-        }
+        // if let Err(e) = T::transactionally_reserve(
+        //     &account,
+        //     external_id,
+        //     &shares_to_reserve,
+        //     *asset_id,
+        // ) {
+        //     match e {
+        //         ReserveError::<DeipAssetId<T>>::NotEnoughBalance =>
+        //             return Err(Error::<T>::BalanceIsNotEnough.into()),
+        //         ReserveError::<DeipAssetId<T>>::AssetTransferFailed(_) =>
+        //             return Err(Error::<T>::FailedToReserveAsset.into()),
+        //         ReserveError::<DeipAssetId<T>>::AlreadyReserved =>
+        //             return Err(Error::<T>::AlreadyExists.into()),
+        //     };
+        // }
 
         let new_token_sale = SimpleCrowdfunding {
             created_ctx: T::TransactionCtx::current().id(),
@@ -266,13 +270,13 @@ impl<T: Config> Pallet<T> {
     fn refund(sale: &SimpleCrowdfundingOf<T>) {
         if let Ok(ref c) = InvestmentMapV1::<T>::try_get(sale.external_id) {
             for (_, ref contribution) in c {
-                T::transfer_from_reserved(
-                    sale.external_id,
-                    &contribution.owner,
-                    sale.asset_id,
-                    contribution.amount,
-                )
-                .unwrap_or_else(|_| panic!("user's asset should be reserved earlier"));
+                // T::transfer_from_reserved(
+                //     sale.external_id,
+                //     &contribution.owner,
+                //     sale.asset_id,
+                //     contribution.amount,
+                // )
+                // .unwrap_or_else(|_| panic!("user's asset should be reserved earlier"));
 
                 // let unit = (sale.asset_id, contribution.amount);
                 //
@@ -344,11 +348,11 @@ impl<T: Config> Pallet<T> {
             *asset.amount()
         };
 
-        ensure!(
-            T::transfer_to_reserved(&account, sale.external_id, amount_to_contribute)
-                .is_ok(),
-            Error::<T>::InvestingNotEnoughFunds
-        );
+        // ensure!(
+        //     T::transfer_to_reserved(&account, sale.external_id, amount_to_contribute)
+        //         .is_ok(),
+        //     Error::<T>::InvestingNotEnoughFunds
+        // );
 
         InvestmentMapV1::<T>::mutate_exists(sale_id, |contributions| {
             let mut_contributions = match contributions.as_mut() {
@@ -440,16 +444,16 @@ pub trait ContributionAcceptT<T: Config> {
         &self,
         investment: &Investment<T>,
         share: &DeipAsset<T>,
-        share_remaining: DeipAssetBalance<T>
+        share_remaining: T::AssetBalance,
     ) -> ShareRemaining<T>;
 }
-pub type ShareRemaining<T> = DeipAssetBalance<T>;
+pub type ShareRemaining<T> = <T as Config>::AssetBalance;
 impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
     fn accept(
         &self,
         investment: &Investment<T>,
         share: &DeipAsset<T>,
-        share_remains: DeipAssetBalance<T>
+        share_remains: T::AssetBalance,
     ) -> ShareRemaining<T>
     {
         frame_system::Pallet::<T>::dec_consumers(&investment.owner);
@@ -459,7 +463,7 @@ impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
             return share_remains
         }
 
-        let token_amount: DeipAssetBalance<T>
+        let token_amount: T::AssetBalance
             = self.token_amount(investment, share)
             .calc()
             .saturated_into();
@@ -471,19 +475,19 @@ impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
 
         use deip_asset_system::{Transfer, TransferT, asset::{GenericAssetT, GenericFToken, GenericAsset}};
 
-        T::Asset::new(Default::default(), Default::default())
+        T::Asset::new(*share.id(), Default::default())
             .transfer(
                 investment_key::<T>(self.sale.external_id.as_bytes()),
                 investment.owner.clone()
             );
 
-        T::transfer_from_reserved(
-            self.sale.external_id,
-            &investment.owner,
-            *share.id(),
-            token_amount,
-        )
-        .unwrap_or_else(|_| panic!("Required token_amount should be reserved"));
+        // T::transfer_from_reserved(
+        //     self.sale.external_id,
+        //     &investment.owner,
+        //     *share.id(),
+        //     token_amount,
+        // )
+        // .unwrap_or_else(|_| panic!("Required token_amount should be reserved"));
 
         share_remains - token_amount
     }
