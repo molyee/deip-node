@@ -43,6 +43,7 @@ pub mod pallet {
         UnfilteredDispatchable,
         StoredMap,
         fungibles,
+        ReservableCurrency,
     };
 
     use sp_std::{
@@ -98,6 +99,8 @@ pub mod pallet {
                 Self::AssetTransfer
             >
             + TransferUnitT<Self::AccountId, Self::AssetTransfer>;
+
+        type Currency: ReservableCurrency<Self::AccountId>;
     }
 
     use frame_support::traits::StorageVersion;

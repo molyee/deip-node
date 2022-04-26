@@ -390,75 +390,75 @@ pub mod pallet {
             Ok(())
         }
 
-        #[transactional]
-        pub fn deip_transactionally_reserve(
-            account: &T::AccountId,
-            id: DeipInvestmentIdOf<T>,
-            shares: &[(DeipAssetIdOf<T>, AssetsBalanceOf<T>)],
-            asset_to_raise: DeipAssetIdOf<T>,
-        ) -> Result<(), deip_assets_error::ReserveError<DeipAssetIdOf<T>>> {
-            use deip_assets_error::ReserveError;
-
-            ensure!(!InvestmentMapV1::<T>::contains_key(id.clone()), ReserveError::AlreadyReserved);
-
-            let id_account = Self::investment_key(&id);
-            let id_source = <T::Lookup as StaticLookup>::unlookup(id_account.clone());
-
-            let reserved = T::Currency::withdraw(
-                account,
-                T::Currency::minimum_balance(),
-                WithdrawReasons::RESERVE,
-                ExistenceRequirement::AllowDeath,
-            )
-            .map_err(|_| ReserveError::NotEnoughBalance)?;
-
-            T::Currency::resolve_creating(&id_account, reserved);
-
-            let mut assets_to_reserve = Vec::<DeipAssetIdOf<T>>::with_capacity(shares.len());
-
-            for (asset, amount) in shares {
-                let asset_id = AssetIdByDeipAssetIdV1::<T>::iter_prefix(asset)
-                    .next()
-                    .ok_or(ReserveError::AssetTransferFailed(*asset))?
-                    .0;
-                let call = pallet_assets::Call::<T>::transfer {
-                    id: asset_id,
-                    target: id_source.clone(),
-                    amount: *amount,
-                };
-                let result = call.dispatch_bypass_filter(RawOrigin::Signed(account.clone()).into());
-                if result.is_err() {
-                    return Err(ReserveError::AssetTransferFailed(*asset))
-                }
-
-                assets_to_reserve.push(*asset);
-
-                InvestmentByAssetIdV1::<T>::mutate_exists(*asset, |investments| {
-                    match investments.as_mut() {
-                        None => *investments = Some(vec![id.clone()]),
-                        Some(c) => c.push(id.clone()),
-                    };
-                });
-            }
-
-            InvestmentByAssetIdV1::<T>::mutate_exists(asset_to_raise, |investments| {
-                match investments.as_mut() {
-                    None => *investments = Some(vec![id.clone()]),
-                    Some(c) => c.push(id.clone()),
-                };
-            });
-
-            InvestmentMapV1::<T>::insert(
-                id.clone(),
-                Investment {
-                    creator: account.clone(),
-                    assets: assets_to_reserve,
-                    asset_id: asset_to_raise,
-                },
-            );
-
-            Ok(())
-        }
+        // #[transactional]
+        // pub fn deip_transactionally_reserve(
+        //     account: &T::AccountId,
+        //     id: DeipInvestmentIdOf<T>,
+        //     shares: &[(DeipAssetIdOf<T>, AssetsBalanceOf<T>)],
+        //     asset_to_raise: DeipAssetIdOf<T>,
+        // ) -> Result<(), deip_assets_error::ReserveError<DeipAssetIdOf<T>>> {
+        //     use deip_assets_error::ReserveError;
+        //
+        //     ensure!(!InvestmentMapV1::<T>::contains_key(id.clone()), ReserveError::AlreadyReserved);
+        //
+        //     let id_account = Self::investment_key(&id);
+        //     let id_source = <T::Lookup as StaticLookup>::unlookup(id_account.clone());
+        //
+        //     let reserved = T::Currency::withdraw(
+        //         account,
+        //         T::Currency::minimum_balance(),
+        //         WithdrawReasons::RESERVE,
+        //         ExistenceRequirement::AllowDeath,
+        //     )
+        //     .map_err(|_| ReserveError::NotEnoughBalance)?;
+        //
+        //     T::Currency::resolve_creating(&id_account, reserved);
+        //
+        //     let mut assets_to_reserve = Vec::<DeipAssetIdOf<T>>::with_capacity(shares.len());
+        //
+        //     for (asset, amount) in shares {
+        //         let asset_id = AssetIdByDeipAssetIdV1::<T>::iter_prefix(asset)
+        //             .next()
+        //             .ok_or(ReserveError::AssetTransferFailed(*asset))?
+        //             .0;
+        //         let call = pallet_assets::Call::<T>::transfer {
+        //             id: asset_id,
+        //             target: id_source.clone(),
+        //             amount: *amount,
+        //         };
+        //         let result = call.dispatch_bypass_filter(RawOrigin::Signed(account.clone()).into());
+        //         if result.is_err() {
+        //             return Err(ReserveError::AssetTransferFailed(*asset))
+        //         }
+        //
+        //         assets_to_reserve.push(*asset);
+        //
+        //         InvestmentByAssetIdV1::<T>::mutate_exists(*asset, |investments| {
+        //             match investments.as_mut() {
+        //                 None => *investments = Some(vec![id.clone()]),
+        //                 Some(c) => c.push(id.clone()),
+        //             };
+        //         });
+        //     }
+        //
+        //     InvestmentByAssetIdV1::<T>::mutate_exists(asset_to_raise, |investments| {
+        //         match investments.as_mut() {
+        //             None => *investments = Some(vec![id.clone()]),
+        //             Some(c) => c.push(id.clone()),
+        //         };
+        //     });
+        //
+        //     InvestmentMapV1::<T>::insert(
+        //         id.clone(),
+        //         Investment {
+        //             creator: account.clone(),
+        //             assets: assets_to_reserve,
+        //             asset_id: asset_to_raise,
+        //         },
+        //     );
+        //
+        //     Ok(())
+        // }
 
         #[transactional]
         pub fn transactionally_unreserve(
@@ -517,49 +517,49 @@ pub mod pallet {
             Ok(())
         }
 
-        pub fn transfer_from_reserved(
-            from: DeipInvestmentIdOf<T>,
-            to: &T::AccountId,
-            id: DeipAssetIdOf<T>,
-            amount: AssetsBalanceOf<T>,
-        ) -> Result<(), deip_assets_error::UnreserveError<DeipAssetIdOf<T>>> {
-            use deip_assets_error::UnreserveError;
-
-            ensure!(
-                InvestmentMapV1::<T>::contains_key(from.clone()),
-                UnreserveError::NoSuchInvestment
-            );
-
-            let from = Self::investment_key(&from);
-
-            Self::transfer_from_reserved2(
-                from,
-                to,
-                id,
-                amount
-            )
-        }
-
-        pub fn transfer_from_reserved2(
-            from: T::AccountId,
-            to: &T::AccountId,
-            id: DeipAssetIdOf<T>,
-            amount: AssetsBalanceOf<T>,
-        ) -> Result<(), deip_assets_error::UnreserveError<DeipAssetIdOf<T>>> {
-            use deip_assets_error::UnreserveError;
-
-            let result = Self::deip_transfer_impl(
-                RawOrigin::Signed(from).into(),
-                id,
-                to.clone(),
-                amount,
-            );
-            if result.is_err() {
-                return Err(UnreserveError::AssetTransferFailed(id))
-            }
-
-            Ok(())
-        }
+        // pub fn transfer_from_reserved(
+        //     from: DeipInvestmentIdOf<T>,
+        //     to: &T::AccountId,
+        //     id: DeipAssetIdOf<T>,
+        //     amount: AssetsBalanceOf<T>,
+        // ) -> Result<(), deip_assets_error::UnreserveError<DeipAssetIdOf<T>>> {
+        //     use deip_assets_error::UnreserveError;
+        //
+        //     ensure!(
+        //         InvestmentMapV1::<T>::contains_key(from.clone()),
+        //         UnreserveError::NoSuchInvestment
+        //     );
+        //
+        //     let from = Self::investment_key(&from);
+        //
+        //     Self::transfer_from_reserved2(
+        //         from,
+        //         to,
+        //         id,
+        //         amount
+        //     )
+        // }
+        //
+        // pub fn transfer_from_reserved2(
+        //     from: T::AccountId,
+        //     to: &T::AccountId,
+        //     id: DeipAssetIdOf<T>,
+        //     amount: AssetsBalanceOf<T>,
+        // ) -> Result<(), deip_assets_error::UnreserveError<DeipAssetIdOf<T>>> {
+        //     use deip_assets_error::UnreserveError;
+        //
+        //     let result = Self::deip_transfer_impl(
+        //         RawOrigin::Signed(from).into(),
+        //         id,
+        //         to.clone(),
+        //         amount,
+        //     );
+        //     if result.is_err() {
+        //         return Err(UnreserveError::AssetTransferFailed(id))
+        //     }
+        //
+        //     Ok(())
+        // }
 
         pub fn deip_transfer_to_reserved(
             who: &T::AccountId,

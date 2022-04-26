@@ -25,8 +25,7 @@ pub use deip_asset_system::asset::*;
 use crate::{SimpleCrowdfundingMapV1, InvestmentMapV1};
 use crate::weights::WeightInfo;
 
-pub type DeipAssetId<T: Config> =
-    <T as DeipAssetSystem<T::AccountId, T::SourceId, InvestmentId>>::AssetId;
+pub type DeipAssetId<T: Config> = <T as Config>::AssetId;
 
 pub type DeipAssetBalance<T: Config> =
     <T as DeipAssetSystem<T::AccountId, T::SourceId, InvestmentId>>::Balance;
@@ -53,6 +52,7 @@ pub type Investment<T: Config> = Contribution<
 >;
 
 use deip_asset_system::{TransferUnitT, TransferSourceT, TransferT, TransferTargetT, };
+use frame_support::traits::{Currency, ReservableCurrency, WithdrawReasons, ExistenceRequirement};
 
 // impl<T: Config, Unit: TransferUnitT<T::AccountId>> Module<Unit, T::AssetTransfer> for T {}
 impl<T: Config> Module<T> for T {}
@@ -83,6 +83,69 @@ pub trait Module</*Unit, Transfer,*/ T: Config> {
             investment_key::<T>(from.external_id.as_bytes()),
             to.owner.clone(),
         );
+    }
+
+    // #[transactional]
+    fn _deip_transactionally_reserve(
+        account: &T::AccountId,
+        id: InvestmentId,
+        shares: &[(<T as Config>::AssetId, T::AssetBalance)],
+        asset_to_raise: <T as Config>::AssetId,
+    ) -> Result<(), ReserveError<<T as Config>::AssetId>>
+    {
+        ensure!(!InvestmentMapV1::<T>::contains_key(id.clone()), ReserveError::AlreadyReserved);
+
+        let investment_key = investment_key::<T>(id.as_bytes());
+
+        let reserved = T::Currency::withdraw(
+            account,
+            T::Currency::minimum_balance(),
+            WithdrawReasons::RESERVE,
+            ExistenceRequirement::AllowDeath,
+        )
+        .map_err(|_| ReserveError::NotEnoughBalance)?;
+
+        T::Currency::resolve_creating(&investment_key, reserved);
+
+        let mut assets_to_reserve = Vec::<<T as Config>::AssetId>::with_capacity(shares.len());
+
+        for (asset, amount) in shares {
+            // let asset_id = AssetIdByDeipAssetIdV1::<T>::iter_prefix(asset)
+            //     .next()
+            //     .ok_or(ReserveError::AssetTransferFailed(*asset))?
+            //     .0;
+            T::Asset::new(*asset, *amount).transfer(
+                account.clone(),
+                investment_key.clone(),
+            );
+
+            assets_to_reserve.push(*asset);
+
+            // InvestmentByAssetIdV1::<T>::mutate_exists(*asset, |investments| {
+            //     match investments.as_mut() {
+            //         None => *investments = Some(vec![id.clone()]),
+            //         Some(c) => c.push(id.clone()),
+            //     };
+            // });
+        }
+
+        // InvestmentByAssetIdV1::<T>::mutate_exists(asset_to_raise, |investments| {
+        //     match investments.as_mut() {
+        //         None => *investments = Some(vec![id.clone()]),
+        //         Some(c) => c.push(id.clone()),
+        //     };
+        // });
+
+        // InvestmentMapV1::<T>::insert(
+        //     id.clone(),
+        //     Investment {
+        //         creator: account.clone(),
+        //         assets: assets_to_reserve,
+        //         asset_id: asset_to_raise,
+        //     },
+        // );
+
+        Ok(())
     }
 }
 
@@ -164,21 +227,21 @@ impl<T: Config> Pallet<T> {
             Error::<T>::AlreadyExists
         );
 
-        // if let Err(e) = T::transactionally_reserve(
-        //     &account,
-        //     external_id,
-        //     &shares_to_reserve,
-        //     *asset_id,
-        // ) {
-        //     match e {
-        //         ReserveError::<DeipAssetId<T>>::NotEnoughBalance =>
-        //             return Err(Error::<T>::BalanceIsNotEnough.into()),
-        //         ReserveError::<DeipAssetId<T>>::AssetTransferFailed(_) =>
-        //             return Err(Error::<T>::FailedToReserveAsset.into()),
-        //         ReserveError::<DeipAssetId<T>>::AlreadyReserved =>
-        //             return Err(Error::<T>::AlreadyExists.into()),
-        //     };
-        // }
+        if let Err(e) = T::_deip_transactionally_reserve(
+            &account,
+            external_id,
+            &shares_to_reserve,
+            *asset_id,
+        ) {
+            match e {
+                ReserveError::<DeipAssetId<T>>::NotEnoughBalance =>
+                    return Err(Error::<T>::BalanceIsNotEnough.into()),
+                ReserveError::<DeipAssetId<T>>::AssetTransferFailed(_) =>
+                    return Err(Error::<T>::FailedToReserveAsset.into()),
+                ReserveError::<DeipAssetId<T>>::AlreadyReserved =>
+                    return Err(Error::<T>::AlreadyExists.into()),
+            };
+        }
 
         let new_token_sale = SimpleCrowdfunding {
             created_ctx: T::TransactionCtx::current().id(),

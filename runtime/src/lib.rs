@@ -771,6 +771,7 @@ impl pallet_deip_investment_opportunity::Config for Runtime {
     type AssetId = <Assets as fungibles::Inspect<Self::AccountId>>::AssetId;
     type AssetBalance = <Assets as fungibles::Inspect<Self::AccountId>>::Balance;
     type Asset = GenericFToken<Self::AccountId, Assets>;
+    type Currency = Balances;
 }
 
 impl deip_asset_system::AssetIdInitT<DeipAssetId> for Runtime {
@@ -801,27 +802,27 @@ impl deip_asset_system::DeipAssetSystem<AccountId, ProjectId, InvestmentId> for 
         DeipAssets::transactionally_transfer(from, asset, transfers)
     }
 
-    fn transactionally_reserve(
-        account: &AccountId,
-        id: InvestmentId,
-        shares: &[(Self::AssetId, Self::Balance)],
-        asset: Self::AssetId,
-    ) -> Result<(), ReserveError<Self::AssetId>> {
-        DeipAssets::deip_transactionally_reserve(account, id, shares, asset)
-    }
+    // fn transactionally_reserve(
+    //     account: &AccountId,
+    //     id: InvestmentId,
+    //     shares: &[(Self::AssetId, Self::Balance)],
+    //     asset: Self::AssetId,
+    // ) -> Result<(), ReserveError<Self::AssetId>> {
+    //     DeipAssets::deip_transactionally_reserve(account, id, shares, asset)
+    // }
 
     fn transactionally_unreserve(id: InvestmentId) -> Result<(), UnreserveError<Self::AssetId>> {
         DeipAssets::transactionally_unreserve(id)
     }
 
-    fn transfer_from_reserved(
-        from: InvestmentId,
-        to: &AccountId,
-        id: Self::AssetId,
-        amount: Self::Balance,
-    ) -> Result<(), UnreserveError<Self::AssetId>> {
-        DeipAssets::transfer_from_reserved(from, to, id, amount)
-    }
+    // fn transfer_from_reserved(
+    //     from: InvestmentId,
+    //     to: &AccountId,
+    //     id: Self::AssetId,
+    //     amount: Self::Balance,
+    // ) -> Result<(), UnreserveError<Self::AssetId>> {
+    //     DeipAssets::transfer_from_reserved(from, to, id, amount)
+    // }
 
     fn transfer_to_reserved(
         who: &AccountId,
