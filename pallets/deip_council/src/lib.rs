@@ -35,13 +35,13 @@ pub mod weights;
 pub(crate) mod pallet {
     use crate::weights::WeightInfo;
     use super::*;
-    use frame_system::pallet_prelude::*;
     use frame_system::RawOrigin;
+    use frame_system::SetCode;
+    use frame_system::pallet_prelude::*;
     use frame_support::dispatch::DispatchResult;
     use frame_support::weights::{GetDispatchInfo, PostDispatchInfo};
-    use frame_support::traits::StorageVersion;
     use frame_support::pallet_prelude::*;
-    use frame_support::traits::{IsSubType, UnfilteredDispatchable};
+    use frame_support::traits::{IsSubType, StorageVersion, UnfilteredDispatchable};
     use sp_std::prelude::*;
     use sp_std::fmt::Debug;
     use sp_runtime::traits::Dispatchable;
@@ -99,6 +99,7 @@ pub(crate) mod pallet {
             ensure_root(origin)?;
             ensure!(Self::key().is_none(), Error::<T>::AlreadyInitialized);
             //let dao = Self::load_dao(LoadBy::DaoId { id: &dao_id, who: &origin })
+            Self::key()::put(key)?;
             Self::deposit_event(Event::CouncilInitialized(key));
             Ok(())
         }
@@ -106,8 +107,9 @@ pub(crate) mod pallet {
         #[pallet::weight((T::Weights::update_runtime(code.len()), DispatchClass::Operational))]
         pub fn update_runtime(origin: OriginFor<T>, code: Vec<u8>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-            ensure!(Self::key().is_none(), Error::<T>::Uninitialized);
+            ensure!(!Self::key().is_none(), Error::<T>::Uninitialized);
             ensure!(sender == Self::key().unwrap(), Error::<T>::PermissionDenied);
+            //frame_system::Pallet::<T>::set_code(RawOrigin::Root.into(), code)
             let call = frame_system::Call::<T>::set_code { code };
             call.dispatch_bypass_filter(RawOrigin::Root.into())
         }

@@ -176,7 +176,7 @@ dependencies = [
 
 [[package]]
 name = "appchain-deip-runtime"
-version = "3.0.0-monthly-2021-08"
+version = "3.0.1-monthly-2022-04"
 dependencies = [
  "beefy-primitives",
  "borsh",

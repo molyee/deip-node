@@ -87,7 +87,7 @@ benchmarks! {
             T::UncheckedExtrinsic: codec::Codec
     }
 
-    create {
+    init {
         let portal = init_portal::<T>();
     }: _(RawOrigin::Signed(portal.owner().clone()),
             portal.delegate().clone(),

@@ -17,7 +17,7 @@ frame_support::construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        DeipDao: pallet_deip_dao::{Pallet, Call, Storage, Config},
+        DeipCouncil: pallet_deip_council::{Pallet, Call, Storage, Event<T>},
     }
 );
 
