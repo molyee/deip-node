@@ -49,6 +49,7 @@ pallet-deip-uniques = { path = "../pallets/deip_uniques", default-features = fal
 pallet-deip-vesting = { path = "../pallets/deip_vesting", default-features = false }
 pallet-deip-ecosystem-fund = { path = "../pallets/deip_ecosystem_fund", default-features = false }
 pallet-deip-investment-opportunity = { path = "../pallets/deip_investment_opportunity", default-features = false }
+pallet-deip-council = { path = "../pallets/deip_council", default-features = false }
 pallet-grandpa = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
 pallet-im-online = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }
 pallet-mmr = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.13", default-features = false }

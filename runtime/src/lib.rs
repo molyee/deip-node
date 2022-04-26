@@ -876,6 +876,12 @@ impl pallet_utility::Config for Runtime {
     type PalletsOrigin = OriginCaller;
 }
 
+impl pallet_deip_council::Config for Runtime {
+    type Event = Event;
+    type Call = Call;
+    type Weights = pallet_deip_council::weights::Weights<Self>;
+}
+
 impl pallet_deip_portal::Config for Runtime {
     type TenantLookup = Self;
     type PortalId = <Runtime as pallet_deip_dao::Config>::DaoId;
@@ -948,6 +954,7 @@ construct_runtime!(
         DeipVesting: pallet_deip_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
         DeipEcosystemFund: pallet_deip_ecosystem_fund::{Pallet, Config<T>, Storage},
         DeipInvestmentOpportunity: pallet_deip_investment_opportunity,
+        DeipCouncil: pallet_deip_council::{Pallet, Call, Storage, Event<T>},
     }
 );
 
@@ -1229,6 +1236,7 @@ impl_runtime_apis! {
             list_benchmark!(list, extra, pallet_deip_portal, DeipPortal);
             // list_benchmark!(list, extra, pallet_deip, Deip);
             list_benchmark!(list, extra, pallet_deip_investment_opportunity, DeipInvestmentOpportunity);
+            list_benchmark!(list, extra, pallet_deip_council, DeipCouncil);
 
             let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1270,6 +1278,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_deip_portal, DeipPortal);
             // add_benchmark!(params, batches, pallet_deip, Deip);
             add_benchmark!(params, batches, pallet_deip_investment_opportunity, DeipInvestmentOpportunity);
+            add_benchmark!(params, batches, pallet_deip_council, DeipCouncil);
 
             Ok(batches)
         }
