@@ -99,7 +99,7 @@ pub(crate) mod pallet {
             ensure_root(origin)?;
             ensure!(Self::key().is_none(), Error::<T>::AlreadyInitialized);
             //let dao = Self::load_dao(LoadBy::DaoId { id: &dao_id, who: &origin })
-            Self::key()::put(key)?;
+            Key::<T>::put(key.clone());
             Self::deposit_event(Event::CouncilInitialized(key));
             Ok(())
         }
@@ -107,7 +107,7 @@ pub(crate) mod pallet {
         #[pallet::weight((T::Weights::update_runtime(code.len()), DispatchClass::Operational))]
         pub fn update_runtime(origin: OriginFor<T>, code: Vec<u8>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-            ensure!(!Self::key().is_none(), Error::<T>::Uninitialized);
+            ensure!(Self::key().is_some(), Error::<T>::Uninitialized);
             ensure!(sender == Self::key().unwrap(), Error::<T>::PermissionDenied);
             //frame_system::Pallet::<T>::set_code(RawOrigin::Root.into(), code)
             let call = frame_system::Call::<T>::set_code { code };
