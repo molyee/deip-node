@@ -55,11 +55,35 @@ pub type Investment<T: Config> = Contribution<
 use deip_asset_system::{TransferUnitT, TransferSourceT, TransferT, TransferTargetT, };
 
 // impl<T: Config, Unit: TransferUnitT<T::AccountId>> Module<Unit, T::AssetTransfer> for T {}
+impl<T: Config> Module<T> for T {}
 
-pub trait Module<Unit, Transfer> {
-    fn reserve(unit: Unit) {}
-    fn commit(unit: Unit) {}
-    fn rollback(unit: Unit) {}
+pub trait Module</*Unit, Transfer,*/ T: Config> {
+    // fn reserve(unit: Unit) {}
+    // fn commit(unit: Unit) {}
+    // fn rollback(unit: Unit) {}
+
+    fn _refund(
+        from: &SimpleCrowdfundingOf<T>,
+        to: &Investment<T>,
+    )
+    {
+        T::Asset::new(from.asset_id, to.amount).transfer(
+            investment_key::<T>(from.external_id.as_bytes()),
+            to.owner.clone(),
+        );
+    }
+
+    fn _transfer_from_reserved(
+        from: &SimpleCrowdfundingOf<T>,
+        to: &Investment<T>,
+        unit: T::Asset,
+    )
+    {
+        unit.transfer(
+            investment_key::<T>(from.external_id.as_bytes()),
+            to.owner.clone(),
+        );
+    }
 }
 
 pub struct Reserve {}
@@ -270,22 +294,7 @@ impl<T: Config> Pallet<T> {
     fn refund(sale: &SimpleCrowdfundingOf<T>) {
         if let Ok(ref c) = InvestmentMapV1::<T>::try_get(sale.external_id) {
             for (_, ref contribution) in c {
-                // T::transfer_from_reserved(
-                //     sale.external_id,
-                //     &contribution.owner,
-                //     sale.asset_id,
-                //     contribution.amount,
-                // )
-                // .unwrap_or_else(|_| panic!("user's asset should be reserved earlier"));
-
-                // let unit = (sale.asset_id, contribution.amount);
-                //
-                // T::transfer_from_reserved2(
-                //     sale.external_id,
-                //     &contribution.owner,
-                //     unit,
-                // )
-                // .unwrap_or_else(|_| panic!("user's asset should be reserved earlier"));
+                T::_refund(sale, contribution);
 
                 frame_system::Pallet::<T>::dec_consumers(&contribution.owner);
             }
@@ -475,19 +484,11 @@ impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
 
         use deip_asset_system::{Transfer, TransferT, asset::{GenericAssetT, GenericFToken, GenericAsset}};
 
-        T::Asset::new(*share.id(), Default::default())
-            .transfer(
-                investment_key::<T>(self.sale.external_id.as_bytes()),
-                investment.owner.clone()
-            );
-
-        // T::transfer_from_reserved(
-        //     self.sale.external_id,
-        //     &investment.owner,
-        //     *share.id(),
-        //     token_amount,
-        // )
-        // .unwrap_or_else(|_| panic!("Required token_amount should be reserved"));
+        T::_transfer_from_reserved(
+            &self.sale,
+            investment,
+            T::Asset::new(*share.id(), token_amount)
+        );
 
         share_remains - token_amount
     }
