@@ -36,7 +36,6 @@ pub(crate) mod pallet {
     use crate::weights::WeightInfo;
     use super::*;
     use frame_system::RawOrigin;
-    use frame_system::SetCode;
     use frame_system::pallet_prelude::*;
     use frame_support::dispatch::DispatchResult;
     use frame_support::weights::{GetDispatchInfo, PostDispatchInfo};
