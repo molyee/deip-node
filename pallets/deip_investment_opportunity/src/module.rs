@@ -86,7 +86,7 @@ pub trait Module</*Unit, Transfer,*/ T: Config> {
     }
 
     // #[transactional]
-    fn _deip_transactionally_reserve(
+    fn _transactionally_reserve(
         account: &T::AccountId,
         id: InvestmentId,
         shares: &[(<T as Config>::AssetId, T::AssetBalance)],
@@ -107,44 +107,26 @@ pub trait Module</*Unit, Transfer,*/ T: Config> {
 
         T::Currency::resolve_creating(&investment_key, reserved);
 
-        let mut assets_to_reserve = Vec::<<T as Config>::AssetId>::with_capacity(shares.len());
-
         for (asset, amount) in shares {
-            // let asset_id = AssetIdByDeipAssetIdV1::<T>::iter_prefix(asset)
-            //     .next()
-            //     .ok_or(ReserveError::AssetTransferFailed(*asset))?
-            //     .0;
             T::Asset::new(*asset, *amount).transfer(
                 account.clone(),
                 investment_key.clone(),
             );
-
-            assets_to_reserve.push(*asset);
-
-            // InvestmentByAssetIdV1::<T>::mutate_exists(*asset, |investments| {
-            //     match investments.as_mut() {
-            //         None => *investments = Some(vec![id.clone()]),
-            //         Some(c) => c.push(id.clone()),
-            //     };
-            // });
         }
 
-        // InvestmentByAssetIdV1::<T>::mutate_exists(asset_to_raise, |investments| {
-        //     match investments.as_mut() {
-        //         None => *investments = Some(vec![id.clone()]),
-        //         Some(c) => c.push(id.clone()),
-        //     };
-        // });
+        Ok(())
+    }
 
-        // InvestmentMapV1::<T>::insert(
-        //     id.clone(),
-        //     Investment {
-        //         creator: account.clone(),
-        //         assets: assets_to_reserve,
-        //         asset_id: asset_to_raise,
-        //     },
-        // );
-
+    fn _transfer_to_reserved(
+        from: T::AccountId,
+        to: &SimpleCrowdfundingOf<T>,
+        amount: T::AssetBalance,
+    ) -> Result<(), UnreserveError<DeipAssetId<T>>>
+    {
+        T::Asset::new(to.asset_id, amount).transfer(
+            from,
+            investment_key::<T>(to.external_id.as_bytes())
+        );
         Ok(())
     }
 }
@@ -227,7 +209,7 @@ impl<T: Config> Pallet<T> {
             Error::<T>::AlreadyExists
         );
 
-        if let Err(e) = T::_deip_transactionally_reserve(
+        if let Err(e) = T::_transactionally_reserve(
             &account,
             external_id,
             &shares_to_reserve,
@@ -412,19 +394,34 @@ impl<T: Config> Pallet<T> {
 
         ensure!(sale.asset_id == *asset.id(), Error::<T>::InvestingWrongAsset);
 
-        let is_hard_cap_reached =
-            sale.total_amount.0.saturating_add(*asset.amount()) >= sale.hard_cap.0;
-        let amount_to_contribute = if is_hard_cap_reached {
-            sale.hard_cap.0.saturating_sub(sale.total_amount.0)
-        } else {
-            *asset.amount()
-        };
+        fn hard_cap_overflows<T: Config>(
+            sale: &SimpleCrowdfundingOf<T>,
+            amount: T::AssetBalance
+        ) -> bool
+        {
+            sale.total_amount.0.saturating_add(amount) >= sale.hard_cap.0
+        }
 
-        // ensure!(
-        //     T::transfer_to_reserved(&account, sale.external_id, amount_to_contribute)
-        //         .is_ok(),
-        //     Error::<T>::InvestingNotEnoughFunds
-        // );
+        fn correct_hard_cap<T: Config>(
+            sale: &SimpleCrowdfundingOf<T>,
+            amount: T::AssetBalance,
+        ) -> T::AssetBalance
+        {
+            if hard_cap_overflows::<T>(sale, amount) {
+                sale.hard_cap.0.saturating_sub(sale.total_amount.0)
+            } else {
+                amount
+            }
+        }
+
+        let hard_cap_reached = hard_cap_overflows::<T>(&sale, *asset.amount());
+        let amount_to_contribute = correct_hard_cap::<T>(&sale, *asset.amount());
+
+        ensure!(
+            // T::transfer_to_reserved(&account, sale.external_id, amount_to_contribute).is_ok(),
+            T::_transfer_to_reserved(account.clone(), &sale, amount_to_contribute).is_ok(),
+            Error::<T>::InvestingNotEnoughFunds
+        );
 
         InvestmentMapV1::<T>::mutate_exists(sale_id, |contributions| {
             let mut_contributions = match contributions.as_mut() {
@@ -483,7 +480,7 @@ impl<T: Config> Pallet<T> {
 
         Self::deposit_event(Event::<T>::Invested(sale_id, account.clone()));
 
-        if is_hard_cap_reached {
+        if hard_cap_reached {
             // Self::finish_crowdfunding_by_id(sale_id).expect("finish; already found");
             let _ = match SimpleCrowdfundingMapV1::<T>::try_get(sale_id) {
                 Err(_) => panic!("finish; already found"),
