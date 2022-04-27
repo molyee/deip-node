@@ -89,16 +89,23 @@ pub mod pallet {
 
         type SourceId: Member + Parameter;
 
-        type AssetTransfer: fungibles::Transfer<Self::AccountId>;
+        type AssetTransfer:
+            fungibles::Transfer<Self::AccountId> +
+            fungibles::Inspect<
+                Self::AccountId,
+                AssetId=<Self as Config>::AssetId,
+                Balance=<Self as Config>::AssetBalance,
+            >;
         type AssetId: Default + AtLeast32BitUnsigned + Clone + Parameter + Member + Copy;
         type AssetBalance: Default + AtLeast32BitUnsigned + Clone + Parameter + Member + Copy;
-        type Asset: GenericAssetT<
+        type Asset:
+            GenericAssetT<
                 <Self as Config>::AssetId,
                 <Self as Config>::AssetBalance,
                 Self::AccountId,
                 Self::AssetTransfer
-            >
-            + TransferUnitT<Self::AccountId, Self::AssetTransfer>;
+            > +
+            TransferUnitT<Self::AccountId, Self::AssetTransfer>;
 
         type Currency: ReservableCurrency<Self::AccountId>;
     }
