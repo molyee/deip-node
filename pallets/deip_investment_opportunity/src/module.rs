@@ -14,7 +14,7 @@ use serde::{self, Serialize, Deserialize};
 use frame_support::{ensure, RuntimeDebug};
 use frame_support::dispatch::{DispatchResult, DispatchResultWithPostInfo};
 use frame_support::log::{debug};
-use frame_support::traits::{Get};
+use frame_support::traits::{Get, fungibles::Inspect};
 use scale_info::TypeInfo;
 use sp_core::H160;
 use sp_std::prelude::*;
@@ -27,8 +27,7 @@ use crate::weights::WeightInfo;
 
 pub type DeipAssetId<T: Config> = <T as Config>::AssetId;
 
-pub type DeipAssetBalance<T: Config> =
-    <T as DeipAssetSystem<T::AccountId, T::SourceId, InvestmentId>>::Balance;
+pub type DeipAssetBalance<T: Config> = <T as Config>::AssetBalance;
 
 pub type DeipAsset<T: Config> = Asset<<T as Config>::AssetId, T::AssetBalance>;
 // pub type DeipAsset<T: Config> = Asset<DeipAssetId<T>, DeipAssetBalance<T>>;
@@ -53,6 +52,7 @@ pub type Investment<T: Config> = Contribution<
 
 use deip_asset_system::{TransferUnitT, TransferSourceT, TransferT, TransferTargetT, };
 use frame_support::traits::{Currency, ReservableCurrency, WithdrawReasons, ExistenceRequirement};
+use pallet_assets::AssetBalance;
 
 // impl<T: Config, Unit: TransferUnitT<T::AccountId>> Module<Unit, T::AssetTransfer> for T {}
 impl<T: Config> Module<T> for T {}
@@ -127,6 +127,46 @@ pub trait Module</*Unit, Transfer,*/ T: Config> {
             from,
             investment_key::<T>(to.external_id.as_bytes())
         );
+        Ok(())
+    }
+
+    // #[transactional]
+    fn _transactionally_unreserve(
+        sale: &SimpleCrowdfundingOf<T>,
+        sale_owner: T::AccountId,
+        // shares: &[(DeipAssetId<T>, DeipAssetBalance<T>)],
+        // asset_to_raise: DeipAssetId<T>,
+    ) -> Result<(), UnreserveError<DeipAssetId<T>>>
+    {
+        let deposited =
+            T::Currency::deposit_creating(&sale_owner, T::Currency::minimum_balance());
+
+        let sale_account = investment_key::<T>(sale.external_id.as_bytes());
+
+        for asset_id in sale.shares.iter().map(|x| x.id()).chain(&[sale.asset_id]) {
+
+            let amount = T::AssetTransfer::balance(*asset_id, &sale_account);
+            if amount.is_zero() {
+                continue
+            }
+
+            T::Asset::new(*asset_id, amount).transfer(
+                sale_account.clone(),
+                sale_owner.clone(),
+            );
+            // if result.is_err() {
+            //     return Err(UnreserveError::AssetTransferFailed(*asset_id))
+            // }
+        }
+
+        T::Currency::settle(
+            &sale_account,
+            deposited,
+            WithdrawReasons::TRANSFER,
+            ExistenceRequirement::AllowDeath,
+        )
+        .unwrap_or_else(|_| panic!("should be reserved in transactionally_reserve"));
+
         Ok(())
     }
 }
@@ -346,8 +386,11 @@ impl<T: Config> Pallet<T> {
             InvestmentMapV1::<T>::remove(sale.external_id);
         }
 
-        T::transactionally_unreserve(sale.external_id)
-            .unwrap_or_else(|_| panic!("assets should be reserved earlier"));
+        T::_transactionally_unreserve(
+            sale,
+            // sale_owner,
+            Default::default()
+        ).unwrap_or_else(|_| panic!("assets should be reserved earlier"));
 
         Self::deposit_event(Event::SimpleCrowdfundingExpired(sale.external_id));
     }
@@ -371,8 +414,11 @@ impl<T: Config> Pallet<T> {
             }
         }
 
-        T::transactionally_unreserve(sale.external_id)
-            .unwrap_or_else(|_| panic!("remaining assets should be reserved earlier"));
+        T::_transactionally_unreserve(
+            sale,
+            // sale_owner
+            Default::default()
+        ).unwrap_or_else(|_| panic!("remaining assets should be reserved earlier"));
 
         InvestmentMapV1::<T>::remove(sale.external_id);
 
