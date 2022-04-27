@@ -73,7 +73,7 @@ pub trait Module</*Unit, Transfer,*/ T: Config> {
         );
     }
 
-    fn _transfer_from_reserved(
+    fn _payout(
         from: &SimpleCrowdfundingOf<T>,
         to: &Investment<T>,
         unit: T::Asset,
@@ -85,8 +85,21 @@ pub trait Module</*Unit, Transfer,*/ T: Config> {
         );
     }
 
+    fn _contribute(
+        from: T::AccountId,
+        to: &SimpleCrowdfundingOf<T>,
+        amount: T::AssetBalance,
+    ) -> Result<(), UnreserveError<DeipAssetId<T>>>
+    {
+        T::Asset::new(to.asset_id, amount).transfer(
+            from,
+            investment_key::<T>(to.external_id.as_bytes())
+        );
+        Ok(())
+    }
+
     // #[transactional]
-    fn _transactionally_reserve(
+    fn _reserve(
         account: &T::AccountId,
         id: InvestmentId,
         shares: &[(<T as Config>::AssetId, T::AssetBalance)],
@@ -117,21 +130,8 @@ pub trait Module</*Unit, Transfer,*/ T: Config> {
         Ok(())
     }
 
-    fn _transfer_to_reserved(
-        from: T::AccountId,
-        to: &SimpleCrowdfundingOf<T>,
-        amount: T::AssetBalance,
-    ) -> Result<(), UnreserveError<DeipAssetId<T>>>
-    {
-        T::Asset::new(to.asset_id, amount).transfer(
-            from,
-            investment_key::<T>(to.external_id.as_bytes())
-        );
-        Ok(())
-    }
-
     // #[transactional]
-    fn _transactionally_unreserve(
+    fn _unreserve(
         sale: &SimpleCrowdfundingOf<T>,
         sale_owner: T::AccountId,
         // shares: &[(DeipAssetId<T>, DeipAssetBalance<T>)],
@@ -249,7 +249,7 @@ impl<T: Config> Pallet<T> {
             Error::<T>::AlreadyExists
         );
 
-        if let Err(e) = T::_transactionally_reserve(
+        if let Err(e) = T::_reserve(
             &account,
             external_id,
             &shares_to_reserve,
@@ -386,7 +386,7 @@ impl<T: Config> Pallet<T> {
             InvestmentMapV1::<T>::remove(sale.external_id);
         }
 
-        T::_transactionally_unreserve(
+        T::_unreserve(
             sale,
             // sale_owner,
             Default::default()
@@ -414,7 +414,7 @@ impl<T: Config> Pallet<T> {
             }
         }
 
-        T::_transactionally_unreserve(
+        T::_unreserve(
             sale,
             // sale_owner
             Default::default()
@@ -465,7 +465,7 @@ impl<T: Config> Pallet<T> {
 
         ensure!(
             // T::transfer_to_reserved(&account, sale.external_id, amount_to_contribute).is_ok(),
-            T::_transfer_to_reserved(account.clone(), &sale, amount_to_contribute).is_ok(),
+            T::_contribute(account.clone(), &sale, amount_to_contribute).is_ok(),
             Error::<T>::InvestingNotEnoughFunds
         );
 
@@ -590,7 +590,7 @@ impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
 
         use deip_asset_system::{Transfer, TransferT, asset::{GenericAssetT, GenericFToken, GenericAsset}};
 
-        T::_transfer_from_reserved(
+        T::_payout(
             &self.sale,
             investment,
             T::Asset::new(*share.id(), token_amount)
