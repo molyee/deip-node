@@ -460,62 +460,62 @@ pub mod pallet {
         //     Ok(())
         // }
 
-        #[transactional]
-        pub fn transactionally_unreserve(
-            id: DeipInvestmentIdOf<T>,
-        ) -> Result<(), deip_assets_error::UnreserveError<DeipAssetIdOf<T>>> {
-            use deip_assets_error::UnreserveError;
-
-            let info = match InvestmentMapV1::<T>::take(id.clone()) {
-                Some(i) => i,
-                None => return Err(UnreserveError::NoSuchInvestment),
-            };
-
-            let deposited =
-                T::Currency::deposit_creating(&info.creator, T::Currency::minimum_balance());
-
-            let id_account = Self::investment_key(&id);
-
-            for asset_id in info.assets.iter().chain(&[info.asset_id]) {
-                InvestmentByAssetIdV1::<T>::mutate_exists(*asset_id, |maybe_investments| {
-                    let investments =
-                        maybe_investments.as_mut().expect("checked in transactionally_reserve");
-                    let index = investments
-                        .iter()
-                        .position(|a| *a == id)
-                        .expect("checked in transactionally_reserve");
-                    investments.remove(index);
-                    if investments.is_empty() {
-                        *maybe_investments = None;
-                    }
-                });
-
-                let amount = Self::account_balance(&id_account, asset_id);
-                if amount.is_zero() {
-                    continue
-                }
-
-                let result = Self::deip_transfer_impl(
-                    RawOrigin::Signed(id_account.clone()).into(),
-                    *asset_id,
-                    info.creator.clone(),
-                    amount,
-                );
-                if result.is_err() {
-                    return Err(UnreserveError::AssetTransferFailed(*asset_id))
-                }
-            }
-
-            T::Currency::settle(
-                &id_account,
-                deposited,
-                WithdrawReasons::TRANSFER,
-                ExistenceRequirement::AllowDeath,
-            )
-            .unwrap_or_else(|_| panic!("should be reserved in transactionally_reserve"));
-
-            Ok(())
-        }
+        // #[transactional]
+        // pub fn transactionally_unreserve(
+        //     id: DeipInvestmentIdOf<T>,
+        // ) -> Result<(), deip_assets_error::UnreserveError<DeipAssetIdOf<T>>> {
+        //     use deip_assets_error::UnreserveError;
+        //
+        //     let info = match InvestmentMapV1::<T>::take(id.clone()) {
+        //         Some(i) => i,
+        //         None => return Err(UnreserveError::NoSuchInvestment),
+        //     };
+        //
+        //     let deposited =
+        //         T::Currency::deposit_creating(&info.creator, T::Currency::minimum_balance());
+        //
+        //     let id_account = Self::investment_key(&id);
+        //
+        //     for asset_id in info.assets.iter().chain(&[info.asset_id]) {
+        //         InvestmentByAssetIdV1::<T>::mutate_exists(*asset_id, |maybe_investments| {
+        //             let investments =
+        //                 maybe_investments.as_mut().expect("checked in transactionally_reserve");
+        //             let index = investments
+        //                 .iter()
+        //                 .position(|a| *a == id)
+        //                 .expect("checked in transactionally_reserve");
+        //             investments.remove(index);
+        //             if investments.is_empty() {
+        //                 *maybe_investments = None;
+        //             }
+        //         });
+        //
+        //         let amount = Self::account_balance(&id_account, asset_id);
+        //         if amount.is_zero() {
+        //             continue
+        //         }
+        //
+        //         let result = Self::deip_transfer_impl(
+        //             RawOrigin::Signed(id_account.clone()).into(),
+        //             *asset_id,
+        //             info.creator.clone(),
+        //             amount,
+        //         );
+        //         if result.is_err() {
+        //             return Err(UnreserveError::AssetTransferFailed(*asset_id))
+        //         }
+        //     }
+        //
+        //     T::Currency::settle(
+        //         &id_account,
+        //         deposited,
+        //         WithdrawReasons::TRANSFER,
+        //         ExistenceRequirement::AllowDeath,
+        //     )
+        //     .unwrap_or_else(|_| panic!("should be reserved in transactionally_reserve"));
+        //
+        //     Ok(())
+        // }
 
         // pub fn transfer_from_reserved(
         //     from: DeipInvestmentIdOf<T>,

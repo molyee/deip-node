@@ -42,9 +42,9 @@ pub trait DeipAssetSystem<To, SourceId, From>: AssetIdInitT<Self::AssetId> {
     //     asset: Self::AssetId,
     // ) -> Result<(), ReserveError<Self::AssetId>>;
 
-    /// Transfers all assets currently owned by `id` to the account, used in
-    /// transactionally_reserve, in a transactional way.
-    fn transactionally_unreserve(id: From) -> Result<(), UnreserveError<Self::AssetId>>;
+    // /// Transfers all assets currently owned by `id` to the account, used in
+    // /// transactionally_reserve, in a transactional way.
+    // fn transactionally_unreserve(id: From) -> Result<(), UnreserveError<Self::AssetId>>;
 
     // /// Transfers `amount` of assets `id` owned by account specified with `id` to `who`.
     // fn transfer_from_reserved(

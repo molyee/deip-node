@@ -811,9 +811,9 @@ impl deip_asset_system::DeipAssetSystem<AccountId, ProjectId, InvestmentId> for 
     //     DeipAssets::deip_transactionally_reserve(account, id, shares, asset)
     // }
 
-    fn transactionally_unreserve(id: InvestmentId) -> Result<(), UnreserveError<Self::AssetId>> {
-        DeipAssets::transactionally_unreserve(id)
-    }
+    // fn transactionally_unreserve(id: InvestmentId) -> Result<(), UnreserveError<Self::AssetId>> {
+    //     DeipAssets::transactionally_unreserve(id)
+    // }
 
     // fn transfer_from_reserved(
     //     from: InvestmentId,
