@@ -794,13 +794,13 @@ impl deip_asset_system::DeipAssetSystem<AccountId, ProjectId, InvestmentId> for 
         DeipAssets::total_supply(asset)
     }
 
-    fn transactionally_transfer(
-        from: &AccountId,
-        asset: Self::AssetId,
-        transfers: &[(Self::Balance, AccountId)],
-    ) -> Result<(), ()> {
-        DeipAssets::transactionally_transfer(from, asset, transfers)
-    }
+    // fn transactionally_transfer(
+    //     from: &AccountId,
+    //     asset: Self::AssetId,
+    //     transfers: &[(Self::Balance, AccountId)],
+    // ) -> Result<(), ()> {
+    //     DeipAssets::transactionally_transfer(from, asset, transfers)
+    // }
 
     // fn transactionally_reserve(
     //     account: &AccountId,
@@ -824,13 +824,13 @@ impl deip_asset_system::DeipAssetSystem<AccountId, ProjectId, InvestmentId> for 
     //     DeipAssets::transfer_from_reserved(from, to, id, amount)
     // }
 
-    fn transfer_to_reserved(
-        who: &AccountId,
-        id: InvestmentId,
-        amount: Self::Balance,
-    ) -> Result<(), UnreserveError<Self::AssetId>> {
-        DeipAssets::deip_transfer_to_reserved(who, id, amount)
-    }
+    // fn transfer_to_reserved(
+    //     who: &AccountId,
+    //     id: InvestmentId,
+    //     amount: Self::Balance,
+    // ) -> Result<(), UnreserveError<Self::AssetId>> {
+    //     DeipAssets::deip_transfer_to_reserved(who, id, amount)
+    // }
 }
 
 parameter_types! {

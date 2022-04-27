@@ -369,26 +369,26 @@ pub mod pallet {
             }
         }
 
-        #[transactional]
-        pub fn transactionally_transfer(
-            from: &AccountIdOf<T>,
-            asset: DeipAssetIdOf<T>,
-            transfers: &[(AssetsBalanceOf<T>, AccountIdOf<T>)],
-        ) -> Result<(), ()> {
-            for (amount, to) in transfers {
-                let result = Self::deip_transfer_impl(
-                    RawOrigin::Signed(from.clone()).into(),
-                    asset,
-                    to.clone(),
-                    *amount,
-                );
-                if result.is_err() {
-                    return Err(())
-                }
-            }
-
-            Ok(())
-        }
+        // #[transactional]
+        // pub fn transactionally_transfer(
+        //     from: &AccountIdOf<T>,
+        //     asset: DeipAssetIdOf<T>,
+        //     transfers: &[(AssetsBalanceOf<T>, AccountIdOf<T>)],
+        // ) -> Result<(), ()> {
+        //     for (amount, to) in transfers {
+        //         let result = Self::deip_transfer_impl(
+        //             RawOrigin::Signed(from.clone()).into(),
+        //             asset,
+        //             to.clone(),
+        //             *amount,
+        //         );
+        //         if result.is_err() {
+        //             return Err(())
+        //         }
+        //     }
+        //
+        //     Ok(())
+        // }
 
         // #[transactional]
         // pub fn deip_transactionally_reserve(
@@ -561,35 +561,35 @@ pub mod pallet {
         //     Ok(())
         // }
 
-        pub fn deip_transfer_to_reserved(
-            who: &T::AccountId,
-            id: DeipInvestmentIdOf<T>,
-            amount: AssetsBalanceOf<T>,
-        ) -> Result<(), deip_assets_error::UnreserveError<DeipAssetIdOf<T>>> {
-            use deip_assets_error::UnreserveError;
-
-            let info = match InvestmentMapV1::<T>::try_get(id.clone()) {
-                Ok(i) => i,
-                Err(_) => return Err(UnreserveError::NoSuchInvestment),
-            };
-
-            let asset_id = AssetIdByDeipAssetIdV1::<T>::iter_prefix(info.asset_id)
-                .next()
-                .ok_or(UnreserveError::AssetTransferFailed(info.asset_id))?
-                .0;
-
-            let id_account = Self::investment_key(&id);
-            let id_source = <T::Lookup as StaticLookup>::unlookup(id_account);
-
-            let call =
-                pallet_assets::Call::<T>::transfer { id: asset_id, target: id_source, amount };
-            let result = call.dispatch_bypass_filter(RawOrigin::Signed(who.clone()).into());
-            if result.is_err() {
-                return Err(UnreserveError::AssetTransferFailed(info.asset_id))
-            }
-
-            Ok(())
-        }
+        // pub fn deip_transfer_to_reserved(
+        //     who: &T::AccountId,
+        //     id: DeipInvestmentIdOf<T>,
+        //     amount: AssetsBalanceOf<T>,
+        // ) -> Result<(), deip_assets_error::UnreserveError<DeipAssetIdOf<T>>> {
+        //     use deip_assets_error::UnreserveError;
+        //
+        //     let info = match InvestmentMapV1::<T>::try_get(id.clone()) {
+        //         Ok(i) => i,
+        //         Err(_) => return Err(UnreserveError::NoSuchInvestment),
+        //     };
+        //
+        //     let asset_id = AssetIdByDeipAssetIdV1::<T>::iter_prefix(info.asset_id)
+        //         .next()
+        //         .ok_or(UnreserveError::AssetTransferFailed(info.asset_id))?
+        //         .0;
+        //
+        //     let id_account = Self::investment_key(&id);
+        //     let id_source = <T::Lookup as StaticLookup>::unlookup(id_account);
+        //
+        //     let call =
+        //         pallet_assets::Call::<T>::transfer { id: asset_id, target: id_source, amount };
+        //     let result = call.dispatch_bypass_filter(RawOrigin::Signed(who.clone()).into());
+        //     if result.is_err() {
+        //         return Err(UnreserveError::AssetTransferFailed(info.asset_id))
+        //     }
+        //
+        //     Ok(())
+        // }
 
         // stores `to` in the map of FT-balances if the asset tokenizes some active
         fn deip_transfer_impl(

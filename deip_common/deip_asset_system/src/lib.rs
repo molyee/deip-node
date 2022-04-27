@@ -26,11 +26,11 @@ pub trait DeipAssetSystem<To, SourceId, From>: AssetIdInitT<Self::AssetId> {
 
     fn total_supply(asset: &Self::AssetId) -> Self::Balance;
 
-    fn transactionally_transfer(
-        from: &To,
-        asset: Self::AssetId,
-        transfers: &[(Self::Balance, To)],
-    ) -> Result<(), ()>;
+    // fn transactionally_transfer(
+    //     from: &To,
+    //     asset: Self::AssetId,
+    //     transfers: &[(Self::Balance, To)],
+    // ) -> Result<(), ()>;
 
     // /// Tries to transfer assets specified by `shares` from
     // /// `account` to a specific balance identified by `id`.
@@ -54,26 +54,13 @@ pub trait DeipAssetSystem<To, SourceId, From>: AssetIdInitT<Self::AssetId> {
     //     amount: Self::Balance,
     // ) -> Result<(), UnreserveError<Self::AssetId>>;
 
-    /// Transfers `amount` of assets `id` owned by account specified with `id` to `who`.
-    fn transfer<Unit: TransferUnitT<To, ()>>(
-        from: From,
-        to: &To,
-        unit: Unit
-    ) -> Result<(), UnreserveError<Self::AssetId>>
-        where From: TransferSourceT<To>,
-              To: TransferTargetT<From> + Clone,
-    {
-        Transfer::new(from, to.clone()).transfer(unit);
-        Ok(())
-    }
-
-    /// Transfers `amount` of assets from `who` to account specified by `id`.
-    /// Assets should be specified in call to `transactionally_reserve`.
-    fn transfer_to_reserved(
-        who: &To,
-        id: From,
-        amount: Self::Balance,
-    ) -> Result<(), UnreserveError<Self::AssetId>>;
+    // /// Transfers `amount` of assets from `who` to account specified by `id`.
+    // /// Assets should be specified in call to `transactionally_reserve`.
+    // fn transfer_to_reserved(
+    //     who: &To,
+    //     id: From,
+    //     amount: Self::Balance,
+    // ) -> Result<(), UnreserveError<Self::AssetId>>;
 }
 
 pub trait TransferUnitT<Account, Transfer> {
