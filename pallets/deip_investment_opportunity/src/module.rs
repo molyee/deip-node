@@ -92,15 +92,13 @@ pub trait Module<T: Config> {
     }
 
     // #[transactional]
-    fn _reserve(
+    fn _lock_shares(
         account: &T::AccountId,
         id: InvestmentId,
         shares: &[FToken<T>],
         asset_to_raise: FTokenId<T>,
     ) -> Result<(), ReserveError<FTokenId<T>>>
     {
-        ensure!(!InvestmentMapV1::<T>::contains_key(id.clone()), ReserveError::AlreadyReserved);
-
         let investment_key = investment_key::<T>(id.as_bytes());
 
         let reserved = T::Currency::withdraw(
@@ -240,7 +238,7 @@ impl<T: Config> Pallet<T> {
             Error::<T>::AlreadyExists
         );
 
-        if let Err(e) = T::_reserve(
+        if let Err(e) = T::_lock_shares(
             &account,
             external_id,
             shares.as_slice(),
