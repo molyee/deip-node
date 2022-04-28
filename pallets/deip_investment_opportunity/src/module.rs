@@ -95,7 +95,7 @@ pub trait Module<T: Config> {
     fn _reserve(
         account: &T::AccountId,
         id: InvestmentId,
-        shares: &[(FTokenId<T>, FTokenBalance<T>)],
+        shares: &[FToken<T>],
         asset_to_raise: FTokenId<T>,
     ) -> Result<(), ReserveError<FTokenId<T>>>
     {
@@ -113,8 +113,8 @@ pub trait Module<T: Config> {
 
         T::Currency::resolve_creating(&investment_key, reserved);
 
-        for (asset, amount) in shares {
-            T::Asset::new(*asset, *amount).transfer(
+        for unit in shares {
+            unit.clone().transfer(
                 account.clone(),
                 investment_key.clone(),
             );
@@ -226,7 +226,6 @@ impl<T: Config> Pallet<T> {
         );
 
         ensure!(!shares.is_empty(), Error::<T>::SecurityTokenNotSpecified);
-        let mut shares_to_reserve = Vec::with_capacity(shares.len());
         for share in &shares {
             ensure!(share.id() != &token, Error::<T>::WrongAssetId);
 
@@ -234,8 +233,6 @@ impl<T: Config> Pallet<T> {
                 share.payload() > &Zero::zero(),
                 Error::<T>::AssetAmountMustBePositive
             );
-
-            shares_to_reserve.push((*share.id(), *share.payload()));
         }
 
         ensure!(
@@ -246,7 +243,7 @@ impl<T: Config> Pallet<T> {
         if let Err(e) = T::_reserve(
             &account,
             external_id,
-            &shares_to_reserve,
+            shares.as_slice(),
             token,
         ) {
             match e {
