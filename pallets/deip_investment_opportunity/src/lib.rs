@@ -60,7 +60,7 @@ pub mod pallet {
     };
 
     use sp_core::H256;
-    use crate::module::{InvestmentId, FundingModelOf, DeipAsset, DeipAssetBalance, DeipAssetId};
+    use crate::module::{InvestmentId, FundingModelOf, FToken, FTokenBalance, FTokenId};
 
     use crate::weights::WeightInfo;
     use deip_asset_system::{DeipAssetSystem, TransferUnitT, asset::GenericAssetT};
@@ -94,18 +94,19 @@ pub mod pallet {
             fungibles::Inspect<
                 Self::AccountId,
                 AssetId=<Self as Config>::AssetId,
-                Balance=<Self as Config>::AssetBalance,
+                Balance=<Self as Config>::AssetPayload,
             >;
         type AssetId: Default + AtLeast32BitUnsigned + Clone + Parameter + Member + Copy;
-        type AssetBalance: Default + AtLeast32BitUnsigned + Clone + Parameter + Member + Copy;
+        type AssetPayload: Default + AtLeast32BitUnsigned + Clone + Parameter + Member + Copy;
         type Asset:
             GenericAssetT<
                 <Self as Config>::AssetId,
-                <Self as Config>::AssetBalance,
+                <Self as Config>::AssetPayload,
                 Self::AccountId,
                 Self::AssetTransfer
             > +
-            TransferUnitT<Self::AccountId, Self::AssetTransfer>;
+            TransferUnitT<Self::AccountId, Self::AssetTransfer> +
+            Default + Parameter + Member + Clone + Copy;
 
         type Currency: ReservableCurrency<Self::AccountId>;
     }
@@ -268,7 +269,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             external_id: InvestmentId,
             creator: T::DeipAccountId,
-            shares: Vec<DeipAsset<T>>,
+            shares: Vec<FToken<T>>,
             funding_model: FundingModelOf<T>,
         ) -> DispatchResult
         {
@@ -313,7 +314,7 @@ pub mod pallet {
         pub fn accept_contribution(
             origin: OriginFor<T>,
             sale_id: InvestmentId,
-            share: DeipAsset<T>,
+            share: FToken<T>,
             contributor: T::AccountId
         ) -> DispatchResult
         {
@@ -330,7 +331,7 @@ pub mod pallet {
             }
             let (_, ref investment) = investments.iter().skip_while(|(x, _)| x != &contributor).next().unwrap();
             ContributionAccept::<T>::new(&sale)
-                .accept(investment, &share, share.amount().clone());
+                .accept(investment, &share, *share.payload());
 
             Self::finish_crowdfunding_impl(sale_id)
         }
@@ -349,7 +350,7 @@ pub mod pallet {
         pub fn invest(
             origin: OriginFor<T>,
             id: InvestmentId,
-            asset: DeipAsset<T>
+            asset: FToken<T>
         ) -> DispatchResultWithPostInfo {
             let account = ensure_signed(origin)?;
             Self::invest_to_crowdfunding_impl(account, id, asset)

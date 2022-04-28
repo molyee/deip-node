@@ -25,28 +25,24 @@ pub use deip_asset_system::asset::*;
 use crate::{SimpleCrowdfundingMapV1, InvestmentMapV1};
 use crate::weights::WeightInfo;
 
-pub type DeipAssetId<T: Config> = <T as Config>::AssetId;
+pub type FTokenId<T: Config> = <T as Config>::AssetId;
 
-pub type DeipAssetBalance<T: Config> = <T as Config>::AssetBalance;
+pub type FTokenBalance<T: Config> = <T as Config>::AssetPayload;
 
-pub type DeipAsset<T: Config> = Asset<<T as Config>::AssetId, T::AssetBalance>;
-// pub type DeipAsset<T: Config> = Asset<DeipAssetId<T>, DeipAssetBalance<T>>;
+pub type FToken<T: Config> = <T as Config>::Asset;
 
-pub type FundingModelOf<T: Config> = FundingModel<T::Moment, DeipAsset<T>>;
+pub type FundingModelOf<T: Config> = FundingModel<T::Moment, FToken<T>>;
 
 pub type SimpleCrowdfundingOf<T: Config> = SimpleCrowdfunding<
     T::Moment,
-    // DeipAssetId<T>,
-    <T as Config>::AssetId,
-    // DeipAssetBalance<T>,
-    T::AssetBalance,
+    FTokenId<T>,
+    FTokenBalance<T>,
     TransactionCtxId<<T as Config>::TransactionCtx>,
 >;
 
 pub type Investment<T: Config> = Contribution<
     T::AccountId,
-    // DeipAssetBalance<T>,
-    T::AssetBalance,
+    FTokenBalance<T>,
     T::Moment
 >;
 
@@ -57,10 +53,7 @@ use pallet_assets::AssetBalance;
 // impl<T: Config, Unit: TransferUnitT<T::AccountId>> Module<Unit, T::AssetTransfer> for T {}
 impl<T: Config> Module<T> for T {}
 
-pub trait Module</*Unit, Transfer,*/ T: Config> {
-    // fn reserve(unit: Unit) {}
-    // fn commit(unit: Unit) {}
-    // fn rollback(unit: Unit) {}
+pub trait Module<T: Config> {
 
     fn _refund(
         from: &SimpleCrowdfundingOf<T>,
@@ -73,7 +66,7 @@ pub trait Module</*Unit, Transfer,*/ T: Config> {
         );
     }
 
-    fn _payout(
+    fn _share(
         from: &SimpleCrowdfundingOf<T>,
         to: &Investment<T>,
         unit: T::Asset,
@@ -85,11 +78,11 @@ pub trait Module</*Unit, Transfer,*/ T: Config> {
         );
     }
 
-    fn _contribute(
+    fn _purchase(
         from: T::AccountId,
         to: &SimpleCrowdfundingOf<T>,
-        amount: T::AssetBalance,
-    ) -> Result<(), UnreserveError<DeipAssetId<T>>>
+        amount: FTokenBalance<T>,
+    ) -> Result<(), UnreserveError<FTokenId<T>>>
     {
         T::Asset::new(to.asset_id, amount).transfer(
             from,
@@ -102,9 +95,9 @@ pub trait Module</*Unit, Transfer,*/ T: Config> {
     fn _reserve(
         account: &T::AccountId,
         id: InvestmentId,
-        shares: &[(<T as Config>::AssetId, T::AssetBalance)],
-        asset_to_raise: <T as Config>::AssetId,
-    ) -> Result<(), ReserveError<<T as Config>::AssetId>>
+        shares: &[(FTokenId<T>, FTokenBalance<T>)],
+        asset_to_raise: FTokenId<T>,
+    ) -> Result<(), ReserveError<FTokenId<T>>>
     {
         ensure!(!InvestmentMapV1::<T>::contains_key(id.clone()), ReserveError::AlreadyReserved);
 
@@ -136,7 +129,7 @@ pub trait Module</*Unit, Transfer,*/ T: Config> {
         sale_owner: T::AccountId,
         // shares: &[(DeipAssetId<T>, DeipAssetBalance<T>)],
         // asset_to_raise: DeipAssetId<T>,
-    ) -> Result<(), UnreserveError<DeipAssetId<T>>>
+    ) -> Result<(), UnreserveError<FTokenId<T>>>
     {
         let deposited =
             T::Currency::deposit_creating(&sale_owner, T::Currency::minimum_balance());
@@ -178,7 +171,7 @@ impl<T: Config> Pallet<T> {
         account: T::AccountId,
         external_id: InvestmentId,
         creator: T::AccountId,
-        shares: Vec<DeipAsset<T>>,
+        shares: Vec<FToken<T>>,
         funding_model: FundingModelOf<T>,
     ) -> DispatchResult {
         ensure!(account == creator, Error::<T>::NoPermission);
@@ -206,9 +199,10 @@ impl<T: Config> Pallet<T> {
         external_id: InvestmentId,
         start_time: T::Moment,
         end_time: T::Moment,
-        soft_cap: DeipAsset<T>,
-        hard_cap: DeipAsset<T>,
-        shares: Vec<DeipAsset<T>>,
+        // token: FTokenId<T>,
+        soft_cap: FToken<T>,
+        hard_cap: FToken<T>,
+        shares: Vec<FToken<T>>,
     ) -> DispatchResult {
         let timestamp = pallet_timestamp::Pallet::<T>::get();
         ensure!(
@@ -223,11 +217,11 @@ impl<T: Config> Pallet<T> {
         let asset_id = soft_cap.id();
         ensure!(asset_id == hard_cap.id(), Error::<T>::CapDifferentAssets);
         ensure!(
-            soft_cap.amount() > &Zero::zero(),
+            soft_cap.payload() > &Zero::zero(),
             Error::<T>::SoftCapMustBeGreaterOrEqualMinimum
         );
         ensure!(
-            hard_cap.amount() >= soft_cap.amount(),
+            hard_cap.payload() >= soft_cap.payload(),
             Error::<T>::HardCapShouldBeGreaterOrEqualSoftCap
         );
 
@@ -237,11 +231,11 @@ impl<T: Config> Pallet<T> {
             ensure!(token.id() != asset_id, Error::<T>::WrongAssetId);
 
             ensure!(
-                token.amount() > &Zero::zero(),
+                token.payload() > &Zero::zero(),
                 Error::<T>::AssetAmountMustBePositive
             );
 
-            shares_to_reserve.push((*token.id(), *token.amount()));
+            shares_to_reserve.push((*token.id(), *token.payload()));
         }
 
         ensure!(
@@ -256,11 +250,11 @@ impl<T: Config> Pallet<T> {
             *asset_id,
         ) {
             match e {
-                ReserveError::<DeipAssetId<T>>::NotEnoughBalance =>
+                ReserveError::<FTokenId<T>>::NotEnoughBalance =>
                     return Err(Error::<T>::BalanceIsNotEnough.into()),
-                ReserveError::<DeipAssetId<T>>::AssetTransferFailed(_) =>
+                ReserveError::<FTokenId<T>>::AssetTransferFailed(_) =>
                     return Err(Error::<T>::FailedToReserveAsset.into()),
-                ReserveError::<DeipAssetId<T>>::AlreadyReserved =>
+                ReserveError::<FTokenId<T>>::AlreadyReserved =>
                     return Err(Error::<T>::AlreadyExists.into()),
             };
         }
@@ -271,9 +265,9 @@ impl<T: Config> Pallet<T> {
             start_time,
             end_time,
             asset_id: *asset_id,
-            soft_cap: SerializableAtLeast32BitUnsigned(soft_cap.amount().clone()),
-            hard_cap: SerializableAtLeast32BitUnsigned(hard_cap.amount().clone()),
-            shares,
+            soft_cap: SerializableAtLeast32BitUnsigned(*soft_cap.payload()),
+            hard_cap: SerializableAtLeast32BitUnsigned(*hard_cap.payload()),
+            shares: shares.into_iter().map(|x| Asset::new(*x.id(), *x.payload())).collect(),
             ..Default::default()
         };
 
@@ -410,7 +404,11 @@ impl<T: Config> Pallet<T> {
 
             for (_, ref investment) in investments.iter() {
 
-                share_remains = contribution.accept(investment, share, share_remains);
+                share_remains = contribution.accept(
+                    investment,
+                    &<FToken<T>>::new(*share.id(), *share.amount()),
+                    share_remains
+                );
             }
         }
 
@@ -428,7 +426,7 @@ impl<T: Config> Pallet<T> {
     pub(super) fn invest_to_crowdfunding_impl(
         account: T::AccountId,
         sale_id: InvestmentId,
-        asset: DeipAsset<T>,
+        asset: FToken<T>,
     ) -> DispatchResultWithPostInfo {
         let sale = SimpleCrowdfundingMapV1::<T>::try_get(sale_id)
             .map_err(|_| Error::<T>::InvestingNotFound)?;
@@ -442,7 +440,7 @@ impl<T: Config> Pallet<T> {
 
         fn hard_cap_overflows<T: Config>(
             sale: &SimpleCrowdfundingOf<T>,
-            amount: T::AssetBalance
+            amount: T::AssetPayload
         ) -> bool
         {
             sale.total_amount.0.saturating_add(amount) >= sale.hard_cap.0
@@ -450,8 +448,8 @@ impl<T: Config> Pallet<T> {
 
         fn correct_hard_cap<T: Config>(
             sale: &SimpleCrowdfundingOf<T>,
-            amount: T::AssetBalance,
-        ) -> T::AssetBalance
+            amount: T::AssetPayload,
+        ) -> T::AssetPayload
         {
             if hard_cap_overflows::<T>(sale, amount) {
                 sale.hard_cap.0.saturating_sub(sale.total_amount.0)
@@ -460,12 +458,12 @@ impl<T: Config> Pallet<T> {
             }
         }
 
-        let hard_cap_reached = hard_cap_overflows::<T>(&sale, *asset.amount());
-        let amount_to_contribute = correct_hard_cap::<T>(&sale, *asset.amount());
+        let hard_cap_reached = hard_cap_overflows::<T>(&sale, *asset.payload());
+        let amount_to_contribute = correct_hard_cap::<T>(&sale, *asset.payload());
 
         ensure!(
             // T::transfer_to_reserved(&account, sale.external_id, amount_to_contribute).is_ok(),
-            T::_contribute(account.clone(), &sale, amount_to_contribute).is_ok(),
+            T::_purchase(account.clone(), &sale, amount_to_contribute).is_ok(),
             Error::<T>::InvestingNotEnoughFunds
         );
 
@@ -558,17 +556,17 @@ pub trait ContributionAcceptT<T: Config> {
     fn accept(
         &self,
         investment: &Investment<T>,
-        share: &DeipAsset<T>,
-        share_remaining: T::AssetBalance,
+        share: &FToken<T>,
+        share_remaining: FTokenBalance<T>,
     ) -> ShareRemaining<T>;
 }
-pub type ShareRemaining<T> = <T as Config>::AssetBalance;
+pub type ShareRemaining<T> = FTokenBalance<T>;
 impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
     fn accept(
         &self,
         investment: &Investment<T>,
-        share: &DeipAsset<T>,
-        share_remains: T::AssetBalance,
+        share: &FToken<T>,
+        share_remains: FTokenBalance<T>,
     ) -> ShareRemaining<T>
     {
         frame_system::Pallet::<T>::dec_consumers(&investment.owner);
@@ -578,7 +576,7 @@ impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
             return share_remains
         }
 
-        let token_amount: T::AssetBalance
+        let token_amount: FTokenBalance<T>
             = self.token_amount(investment, share)
             .calc()
             .saturated_into();
@@ -588,9 +586,9 @@ impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
             return share_remains
         }
 
-        use deip_asset_system::{Transfer, TransferT, asset::{GenericAssetT, GenericFToken, GenericAsset}};
+        use deip_asset_system::{Transfer, TransferT, asset::{GenericAssetT}};
 
-        T::_payout(
+        T::_share(
             &self.sale,
             investment,
             T::Asset::new(*share.id(), token_amount)
@@ -614,11 +612,11 @@ impl<'a, T: Config> ContributionAccept<'a, T> {
     pub fn token_amount(
         &self,
         investment: &Investment<T>,
-        share: &DeipAsset<T>,
+        share: &FToken<T>,
     ) -> TokenAmount
     {
         let investment_amount = investment.amount.saturated_into::<u128>();
-        let share_amount = share.amount().clone().saturated_into::<u128>();
+        let share_amount = (*share.payload()).saturated_into::<u128>();
         let sale_amount = self.sale.total_amount.0.saturated_into::<u128>();
         TokenAmount {
             investment_amount,

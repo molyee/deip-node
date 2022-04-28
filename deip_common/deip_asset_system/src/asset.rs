@@ -15,8 +15,13 @@ use sp_std::default::Default;
 
 pub trait GenericAssetT<Id, Payload, Account, Transfer>: TransferUnitT<Account, Transfer> + Sized {
     fn new(id: Id, payload: Payload) -> Self;
+    fn id(&self) -> &Id;
+    fn payload(&self) -> &Payload;
 }
 
+#[derive(Encode, Decode, Clone, Default, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub struct GenericAsset
     <Id, Payload, Account, Transfer>
     (Id, Payload, PhantomData<(Account, Transfer)>)
@@ -29,6 +34,12 @@ impl<Id, Payload, Account, Transfer>
     fn new(id: Id, payload: Payload) -> Self {
         Self(id, payload, <_>::default())
     }
+    fn id(&self) -> &Id {
+        &self.0
+    }
+    fn payload(&self) -> &Payload {
+        &self.1
+    }
 }
 
 impl<Id, Payload, Account, Transfer>
@@ -38,26 +49,35 @@ impl<Id, Payload, Account, Transfer>
     fn transfer(self, _from: Account, _to: Account) {}
 }
 
+#[derive(Encode, Decode, Clone, Default, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub struct GenericFToken // type name
-    <Account, T: fungibles::Inspect<Account>> // type template
-    (GenericAsset<T::AssetId, T::Balance, Account, T>) // type structure
-    where Self: GenericAssetT<T::AssetId, T::Balance, Account, T>; // type class/signature
+    <Id, Payload, Account, Transfer> // type template
+    (GenericAsset<Id, Payload, Account, Transfer>) // type structure
+    where Self: GenericAssetT<Id, Payload, Account, Transfer>; // type class/signature
 
 impl<Account, T: fungibles::Transfer<Account>>
     GenericAssetT<T::AssetId, T::Balance, Account, T>
-    for GenericFToken<Account, T>
+    for GenericFToken<T::AssetId, T::Balance, Account, T>
 {
     fn new(id: T::AssetId, payload: T::Balance) -> Self {
         Self(GenericAsset::new(id, payload))
     }
+    fn id(&self) -> &T::AssetId {
+        &self.0.id()
+    }
+    fn payload(&self) -> &T::Balance {
+        &self.0.payload()
+    }
 }
 
-impl<Account, Transfer: fungibles::Transfer<Account>>
-    TransferUnitT<Account, Transfer>
-    for GenericFToken<Account, Transfer>
+impl<Account, T: fungibles::Transfer<Account>>
+    TransferUnitT<Account, T>
+    for GenericFToken<T::AssetId, T::Balance, Account, T>
 {
     fn transfer(self, from: Account, to: Account) {
-        Transfer::transfer(
+        T::transfer(
             self.0.0,
             &from,
             &to,

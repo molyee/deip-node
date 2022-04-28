@@ -769,8 +769,8 @@ impl pallet_deip_investment_opportunity::Config for Runtime {
     type SourceId = ProjectId;
     type AssetTransfer = Assets;
     type AssetId = <Assets as fungibles::Inspect<Self::AccountId>>::AssetId;
-    type AssetBalance = <Assets as fungibles::Inspect<Self::AccountId>>::Balance;
-    type Asset = GenericFToken<Self::AccountId, Assets>;
+    type AssetPayload = <Assets as fungibles::Inspect<Self::AccountId>>::Balance;
+    type Asset = GenericFToken<Self::AssetId, Self::AssetPayload, Self::AccountId, Assets>;
     type Currency = Balances;
 }
 
