@@ -31,7 +31,7 @@ pub type FTokenBalance<T: Config> = <T as Config>::AssetPayload;
 
 pub type FToken<T: Config> = <T as Config>::Asset;
 
-pub type FundingModelOf<T: Config> = FundingModel<T::Moment, FToken<T>>;
+pub type FundingModelOf<T: Config> = FundingModel<T::Moment, FTokenBalance<T>>;
 
 pub type SimpleCrowdfundingOf<T: Config> = SimpleCrowdfunding<
     T::Moment,
@@ -187,6 +187,7 @@ impl<T: Config> Pallet<T> {
                     external_id,
                     start_time,
                     end_time,
+                    Default::default(),
                     soft_cap,
                     hard_cap,
                     shares,
@@ -199,9 +200,9 @@ impl<T: Config> Pallet<T> {
         external_id: InvestmentId,
         start_time: T::Moment,
         end_time: T::Moment,
-        // token: FTokenId<T>,
-        soft_cap: FToken<T>,
-        hard_cap: FToken<T>,
+        token: FTokenId<T>,
+        soft_cap: FTokenBalance<T>,
+        hard_cap: FTokenBalance<T>,
         shares: Vec<FToken<T>>,
     ) -> DispatchResult {
         let timestamp = pallet_timestamp::Pallet::<T>::get();
@@ -214,28 +215,27 @@ impl<T: Config> Pallet<T> {
             Error::<T>::EndTimeMustBeLaterStartTime
         );
 
-        let asset_id = soft_cap.id();
-        ensure!(asset_id == hard_cap.id(), Error::<T>::CapDifferentAssets);
+        // ensure!(token == hard_cap.id(), Error::<T>::CapDifferentAssets);
         ensure!(
-            soft_cap.payload() > &Zero::zero(),
+            soft_cap > Zero::zero(),
             Error::<T>::SoftCapMustBeGreaterOrEqualMinimum
         );
         ensure!(
-            hard_cap.payload() >= soft_cap.payload(),
+            hard_cap >= soft_cap,
             Error::<T>::HardCapShouldBeGreaterOrEqualSoftCap
         );
 
         ensure!(!shares.is_empty(), Error::<T>::SecurityTokenNotSpecified);
         let mut shares_to_reserve = Vec::with_capacity(shares.len());
-        for token in &shares {
-            ensure!(token.id() != asset_id, Error::<T>::WrongAssetId);
+        for share in &shares {
+            ensure!(share.id() != &token, Error::<T>::WrongAssetId);
 
             ensure!(
-                token.payload() > &Zero::zero(),
+                share.payload() > &Zero::zero(),
                 Error::<T>::AssetAmountMustBePositive
             );
 
-            shares_to_reserve.push((*token.id(), *token.payload()));
+            shares_to_reserve.push((*share.id(), *share.payload()));
         }
 
         ensure!(
@@ -247,7 +247,7 @@ impl<T: Config> Pallet<T> {
             &account,
             external_id,
             &shares_to_reserve,
-            *asset_id,
+            token,
         ) {
             match e {
                 ReserveError::<FTokenId<T>>::NotEnoughBalance =>
@@ -264,9 +264,9 @@ impl<T: Config> Pallet<T> {
             external_id,
             start_time,
             end_time,
-            asset_id: *asset_id,
-            soft_cap: SerializableAtLeast32BitUnsigned(*soft_cap.payload()),
-            hard_cap: SerializableAtLeast32BitUnsigned(*hard_cap.payload()),
+            asset_id: token,
+            soft_cap: SerializableAtLeast32BitUnsigned(soft_cap),
+            hard_cap: SerializableAtLeast32BitUnsigned(hard_cap),
             shares: shares.into_iter().map(|x| Asset::new(*x.id(), *x.payload())).collect(),
             ..Default::default()
         };
