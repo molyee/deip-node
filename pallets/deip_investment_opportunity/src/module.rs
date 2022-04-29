@@ -1,9 +1,6 @@
 #![allow(type_alias_bounds)]
 
-use sp_runtime::{
-    traits::{AtLeast32BitUnsigned, Saturating, Zero},
-    SaturatedConversion,
-};
+use sp_runtime::{traits::{AtLeast32BitUnsigned, Saturating, Zero}, SaturatedConversion, DispatchError};
 
 use deip_serializable_u128::SerializableAtLeast32BitUnsigned;
 use deip_transaction_ctx::{TransactionCtxT, PortalCtxT, TransactionCtxId};
@@ -91,28 +88,40 @@ pub trait Module<T: Config> {
         Ok(())
     }
 
+    fn _create_investment_account(
+        creator: &T::AccountId,
+        investment_id: &InvestmentId,
+    ) -> Result<T::AccountId, DispatchError>
+    {
+        let investment_account = investment_account::<T>(investment_id.as_bytes());
+
+        let reserved = T::Currency::withdraw(
+            creator,
+            T::Currency::minimum_balance(),
+            WithdrawReasons::RESERVE,
+            ExistenceRequirement::AllowDeath,
+        )?;
+
+        T::Currency::resolve_creating(&investment_account, reserved);
+
+        Ok(investment_account)
+    }
+
     // #[transactional]
     fn _lock_shares(
-        account: &T::AccountId,
+        creator: &T::AccountId,
         id: InvestmentId,
         shares: &[FToken<T>],
     ) -> Result<(), ReserveError<FTokenId<T>>>
     {
-        let investment_account = investment_account::<T>(id.as_bytes());
-
-        let reserved = T::Currency::withdraw(
-            account,
-            T::Currency::minimum_balance(),
-            WithdrawReasons::RESERVE,
-            ExistenceRequirement::AllowDeath,
-        )
-        .map_err(|_| ReserveError::NotEnoughBalance)?;
-
-        T::Currency::resolve_creating(&investment_account, reserved);
+        let investment_account = Self::_create_investment_account(
+            creator,
+            &id
+        ).map_err(|_| ReserveError::NotEnoughBalance)?;
 
         for unit in shares {
             unit.transfer(
-                account.clone(),
+                creator.clone(),
                 investment_account.clone(),
             );
         }
@@ -193,7 +202,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub(super) fn create_simple_crowdfunding(
-        account: T::AccountId,
+        creator: T::AccountId,
         external_id: InvestmentId,
         start_time: T::Moment,
         end_time: T::Moment,
@@ -237,7 +246,7 @@ impl<T: Config> Pallet<T> {
         );
 
         if let Err(e) = T::_lock_shares(
-            &account,
+            &creator,
             external_id,
             shares.as_slice(),
         ) {
