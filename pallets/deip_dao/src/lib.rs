@@ -447,7 +447,7 @@ pub mod pallet {
         }
     }
 
-    pub fn generate_dao_<T: Config>(dao_id: &DaoId) -> T::AccountId {
+    pub fn generate_dao_key<T: Config>(dao_id: &DaoId) -> T::AccountId {
         let (seed, block_num) = T::Random::random(dao_id.as_bytes());
         log::info!("Seed {} block {}", seed, block_num);
         seed
