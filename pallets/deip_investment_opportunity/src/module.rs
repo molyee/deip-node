@@ -61,7 +61,7 @@ pub trait Module<T: Config> {
     )
     {
         T::Asset::new(from.asset_id, to.amount).transfer(
-            investment_key::<T>(from.external_id.as_bytes()),
+            investment_account::<T>(from.external_id.as_bytes()),
             to.owner.clone(),
         );
     }
@@ -73,7 +73,7 @@ pub trait Module<T: Config> {
     )
     {
         unit.transfer(
-            investment_key::<T>(from.external_id.as_bytes()),
+            investment_account::<T>(from.external_id.as_bytes()),
             to.owner.clone(),
         );
     }
@@ -86,7 +86,7 @@ pub trait Module<T: Config> {
     {
         T::Asset::new(to.asset_id, amount).transfer(
             from,
-            investment_key::<T>(to.external_id.as_bytes())
+            investment_account::<T>(to.external_id.as_bytes())
         );
         Ok(())
     }
@@ -96,10 +96,9 @@ pub trait Module<T: Config> {
         account: &T::AccountId,
         id: InvestmentId,
         shares: &[FToken<T>],
-        asset_to_raise: FTokenId<T>,
     ) -> Result<(), ReserveError<FTokenId<T>>>
     {
-        let investment_key = investment_key::<T>(id.as_bytes());
+        let investment_account = investment_account::<T>(id.as_bytes());
 
         let reserved = T::Currency::withdraw(
             account,
@@ -109,12 +108,12 @@ pub trait Module<T: Config> {
         )
         .map_err(|_| ReserveError::NotEnoughBalance)?;
 
-        T::Currency::resolve_creating(&investment_key, reserved);
+        T::Currency::resolve_creating(&investment_account, reserved);
 
         for unit in shares {
-            unit.clone().transfer(
+            unit.transfer(
                 account.clone(),
-                investment_key.clone(),
+                investment_account.clone(),
             );
         }
 
@@ -132,7 +131,7 @@ pub trait Module<T: Config> {
         let deposited =
             T::Currency::deposit_creating(&sale_owner, T::Currency::minimum_balance());
 
-        let sale_account = investment_key::<T>(sale.external_id.as_bytes());
+        let sale_account = investment_account::<T>(sale.external_id.as_bytes());
 
         for asset_id in sale.shares.iter().map(|x| x.id()).chain(&[sale.asset_id]) {
 
@@ -166,30 +165,30 @@ pub struct Reserve {}
 
 impl<T: Config> Pallet<T> {
     pub(super) fn create_investment_opportunity_impl(
-        account: T::AccountId,
         external_id: InvestmentId,
         creator: T::AccountId,
         shares: Vec<FToken<T>>,
         funding_model: FundingModelOf<T>,
     ) -> DispatchResult {
-        ensure!(account == creator, Error::<T>::NoPermission);
         ensure!(
             shares.len() <= T::MaxInvestmentShares::get() as usize,
             Error::<T>::TooMuchShares
         );
 
         match funding_model {
-            FundingModel::SimpleCrowdfunding { start_time, end_time, soft_cap, hard_cap } =>
+            FundingModel::SimpleCrowdfunding { start_time, end_time, soft_cap, hard_cap } => {
+                let asset_to_raise = Default::default();
                 Self::create_simple_crowdfunding(
-                    account,
+                    creator,
                     external_id,
                     start_time,
                     end_time,
-                    Default::default(),
+                    asset_to_raise,
                     soft_cap,
                     hard_cap,
                     shares,
-                ),
+                )
+            },
         }
     }
 
@@ -198,7 +197,7 @@ impl<T: Config> Pallet<T> {
         external_id: InvestmentId,
         start_time: T::Moment,
         end_time: T::Moment,
-        token: FTokenId<T>,
+        asset_to_raise: FTokenId<T>,
         soft_cap: FTokenBalance<T>,
         hard_cap: FTokenBalance<T>,
         shares: Vec<FToken<T>>,
@@ -213,7 +212,6 @@ impl<T: Config> Pallet<T> {
             Error::<T>::EndTimeMustBeLaterStartTime
         );
 
-        // ensure!(token == hard_cap.id(), Error::<T>::CapDifferentAssets);
         ensure!(
             soft_cap > Zero::zero(),
             Error::<T>::SoftCapMustBeGreaterOrEqualMinimum
@@ -225,7 +223,7 @@ impl<T: Config> Pallet<T> {
 
         ensure!(!shares.is_empty(), Error::<T>::SecurityTokenNotSpecified);
         for share in &shares {
-            ensure!(share.id() != &token, Error::<T>::WrongAssetId);
+            ensure!(share.id() != &asset_to_raise, Error::<T>::WrongAssetId);
 
             ensure!(
                 share.payload() > &Zero::zero(),
@@ -242,7 +240,6 @@ impl<T: Config> Pallet<T> {
             &account,
             external_id,
             shares.as_slice(),
-            token,
         ) {
             match e {
                 ReserveError::<FTokenId<T>>::NotEnoughBalance =>
@@ -259,7 +256,7 @@ impl<T: Config> Pallet<T> {
             external_id,
             start_time,
             end_time,
-            asset_id: token,
+            asset_id: asset_to_raise,
             soft_cap: SerializableAtLeast32BitUnsigned(soft_cap),
             hard_cap: SerializableAtLeast32BitUnsigned(hard_cap),
             shares: shares.into_iter().map(|x| Asset::new(*x.id(), *x.payload())).collect(),
@@ -593,7 +590,7 @@ impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
     }
 }
 
-pub fn investment_key<T: Config>(id: &[u8]) -> T::AccountId {
+pub fn investment_account<T: Config>(id: &[u8]) -> T::AccountId {
     let entropy =
         (b"deip/investments/", id).using_encoded(sp_io::hashing::blake2_256);
     T::AccountId::decode(&mut &entropy[..]).unwrap_or_default()

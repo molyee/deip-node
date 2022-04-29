@@ -274,7 +274,7 @@ pub mod pallet {
         ) -> DispatchResult
         {
             let account = ensure_signed(origin)?;
-            Self::create_investment_opportunity_impl(account, external_id, creator.into(), shares, funding_model)
+            Self::create_investment_opportunity_impl(external_id, account, shares, funding_model)
         }
 
         #[pallet::weight(T::DeipInvestmentWeightInfo::activate_crowdfunding())]
