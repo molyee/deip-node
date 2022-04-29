@@ -28,6 +28,7 @@
 mod tests;
 
 pub mod api;
+pub mod migrations;
 pub mod benchmarking;
 pub mod weights;
 
