@@ -38,13 +38,15 @@ pub use pallet::*;
 #[frame_support::pallet]
 #[doc(hidden)]
 pub mod pallet {
-    use frame_system::{pallet_prelude::*, RawOrigin};
+    use frame_system::{pallet_prelude::*, RawOrigin, offchain::AppCrypto};
 
     use frame_support::{
         pallet_prelude::*,
         weights::{GetDispatchInfo, PostDispatchInfo},
-        Hashable,
+        Hashable, traits::Randomness,
     };
+
+    use frame_support::log;
 
     use frame_support::traits::{Get, IsSubType, UnfilteredDispatchable};
 
@@ -56,7 +58,7 @@ pub mod pallet {
         MultiSigner,
     };
 
-    use sp_core::H256;
+    use sp_core::{H256, Pair};
 
     use deip_storage_ops::StorageOpsTransaction;
 
@@ -75,6 +77,8 @@ pub mod pallet {
             + UnfilteredDispatchable<Origin = Self::Origin>
             + frame_support::dispatch::Codec
             + IsSubType<Call<Self>>;
+
+        type Random: Randomness<Self::AccountId, Self::BlockNumber>;
 
         type DaoId: Member + Parameter;
 
@@ -103,9 +107,11 @@ pub mod pallet {
                 && Self::current_storage_version() == V1
             {
                 let id = DaoId::zero();
-                DaoLookup::<T>::remove(dao_key2::<T>(&id));
+                DaoLookup::<T>::remove(dao_key::<T::AccountId>(&id));
                 DaoRepository::<T>::remove(id);
                 return T::DbWeight::get().writes(2);
+            } else {
+
             }
             0
         }
@@ -433,16 +439,21 @@ pub mod pallet {
     }
 
     impl<T: Config> Pallet<T> {
-        pub fn dao_key(dao_id: &DaoId) -> T::AccountId {
-            dao_key::<T::AccountId>(dao_id)
+        pub fn dao_key(dao_id: &DaoId) -> Option<T::AccountId> {
+            let dao: DaoOf<T> = DaoRepository::<T>::get(dao_id)?;
+            Some(dao.dao_key)
         }
     }
+
+    pub fn generate_dao_<T: Config>(dao_id: &DaoId) -> T::AccountId {
+        let (seed, block_num) = T::Random::random(dao_id.as_bytes());
+        log::info!("Seed {} block {}", seed, block_num);
+        seed
+    }
+
     pub fn dao_key<T: Decode + Default>(dao_id: &DaoId) -> T {
         let entropy = (b"deip/DAOs/", dao_id.as_bytes()).using_encoded(sp_io::hashing::blake2_256);
         T::decode(&mut &entropy[..]).unwrap_or_default()
-    }
-    pub fn dao_key2<T: frame_system::Config>(dao_id: &DaoId) -> T::AccountId {
-        dao_key::<T::AccountId>(dao_id)
     }
 
     #[pallet::call]

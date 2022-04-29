@@ -1,6 +1,7 @@
 use frame_support::dispatch::GetStorageVersion;
 use frame_support::traits::{PalletInfoAccess, PalletInfo};
 use frame_support::weights::Weight;
+use frame_support::log;
 use frame_system::Config as SystemConfig;
 use crate::pallet::V1;
 
@@ -10,10 +11,10 @@ where
     P: GetStorageVersion + PalletInfoAccess,
 {
     if P::current_storage_version() == V1 {
-
+        // TODO
         Weight::max_value()
     } else {
-        warn!("pallet-deip-dao: Tried to run migration but storage version is updated to V2. So this code probably needs to be removed");
+        log::warn!("pallet-deip-dao: Tried to run migration but storage version is updated to V2. So this code probably needs to be removed");
         0
     }
 }
