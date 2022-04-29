@@ -103,17 +103,19 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_runtime_upgrade() -> Weight {
-            if Self::on_chain_storage_version() == V0
-                && Self::current_storage_version() == V1
-            {
+            let current_version = Self::current_storage_version();
+            let on_chain_version = Self::on_chain_storage_version();
+            match (on_chain_version, current_version) {
+            (V0, V1) => {
                 let id = DaoId::zero();
                 DaoLookup::<T>::remove(dao_key::<T::AccountId>(&id));
                 DaoRepository::<T>::remove(id);
                 return T::DbWeight::get().writes(2);
-            } else {
-
             }
-            0
+            (V1, V2) => {
+                todo!()
+            }   
+            _ => { 0 }
         }
     }
 
