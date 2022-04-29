@@ -92,11 +92,12 @@ pub mod pallet {
 
     pub const V0: StorageVersion = StorageVersion::new(0);
     pub const V1: StorageVersion = StorageVersion::new(1);
+    pub const V2: StorageVersion = StorageVersion::new(1);
 
     #[doc(hidden)]
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
-    #[pallet::storage_version(V1)]
+    #[pallet::storage_version(V2)]
     pub struct Pallet<T>(_);
 
     #[doc(hidden)]
@@ -116,6 +117,7 @@ pub mod pallet {
                 todo!()
             }   
             _ => { 0 }
+            }
         }
     }
 
@@ -476,7 +478,7 @@ pub mod pallet {
                 authority.assert::<T>(&authority_key).map_err::<Error<T>, _>(Into::into)?;
             ensure!(!name.is_zero(), Error::<T>::Exists);
             ensure!(!DaoRepository::<T>::contains_key(&name), Error::<T>::Exists);
-            let dao_key = Self::dao_key(&name);
+            let dao_key = generate_dao_key::<T>(&name);
             let dao = DaoOf::<T>::new(authority_key, authority, name, dao_key, metadata);
             StorageOpsTransaction::<StorageOps<T>>::new().commit(move |ops| {
                 ops.push_op(StorageOps::CreateDao(dao.clone()));
