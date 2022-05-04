@@ -117,24 +117,86 @@ trait Module<T: Config>: CrowdfundingAccount<T> {
         Ok(())
     }
 
-    // #[transactional]
-    fn _lock_shares(
-        creator: &T::AccountId,
-        id: InvestmentId,
-        shares: &[FToken<T>],
-    ) -> Result<(), ReserveError<FTokenId<T>>>
+    fn create_simple_crowdfunding(
+        creator: T::AccountId,
+        external_id: InvestmentId,
+        start_time: T::Moment,
+        end_time: T::Moment,
+        asset_to_raise: FTokenId<T>,
+        soft_cap: FTokenBalance<T>,
+        hard_cap: FTokenBalance<T>,
+        shares: Vec<FToken<T>>,
+    ) -> DispatchResult
     {
-        let investment_account = Self::_create_account(
-            creator,
-            &id
-        ).map_err(|_| ReserveError::NotEnoughBalance)?;
+        let timestamp = pallet_timestamp::Pallet::<T>::get();
+        ensure!(
+            start_time >= timestamp,
+            Error::<T>::StartTimeMustBeLaterOrEqualCurrentMoment
+        );
+        ensure!(
+            end_time > start_time,
+            Error::<T>::EndTimeMustBeLaterStartTime
+        );
 
-        for unit in shares {
+        ensure!(
+            soft_cap > Zero::zero(),
+            Error::<T>::SoftCapMustBeGreaterOrEqualMinimum
+        );
+        ensure!(
+            hard_cap >= soft_cap,
+            Error::<T>::HardCapShouldBeGreaterOrEqualSoftCap
+        );
+
+        ensure!(!shares.is_empty(), Error::<T>::SecurityTokenNotSpecified);
+        for share in &shares {
+            ensure!(share.id() != &asset_to_raise, Error::<T>::WrongAssetId);
+
+            ensure!(
+                share.payload() > &Zero::zero(),
+                Error::<T>::AssetAmountMustBePositive
+            );
+        }
+
+        ensure!(
+            !SimpleCrowdfundingMapV1::<T>::contains_key(external_id),
+            Error::<T>::AlreadyExists
+        );
+
+        let investment_account = Self::_create_account(
+            &creator,
+            &external_id
+        ).map_err(|_| Error::<T>::BalanceIsNotEnough)?;
+
+        for unit in shares.iter() {
             unit.transfer(
                 creator.clone(),
                 investment_account.clone(),
             );
+            // match e {
+            //     ReserveError::<FTokenId<T>>::NotEnoughBalance =>
+            //         return Err(Error::<T>::BalanceIsNotEnough.into()),
+            //     ReserveError::<FTokenId<T>>::AssetTransferFailed(_) =>
+            //         return Err(Error::<T>::FailedToReserveAsset.into()),
+            //     ReserveError::<FTokenId<T>>::AlreadyReserved =>
+            //         return Err(Error::<T>::AlreadyExists.into()),
+            // };
         }
+
+        let new_token_sale = SimpleCrowdfunding {
+            created_ctx: T::TransactionCtx::current().id(),
+            external_id,
+            start_time,
+            end_time,
+            asset_id: asset_to_raise,
+            soft_cap: SerializableAtLeast32BitUnsigned(soft_cap),
+            hard_cap: SerializableAtLeast32BitUnsigned(hard_cap),
+            shares: shares.into_iter().map(|x| Asset::new(*x.id(), *x.payload())).collect(),
+            ..Default::default()
+        };
+
+        SimpleCrowdfundingMapV1::<T>::insert(external_id, new_token_sale);
+
+        Pallet::<T>::deposit_event(Event::<T>::SimpleCrowdfundingCreated(external_id));
 
         Ok(())
     }
@@ -239,7 +301,7 @@ impl<T: Config> Pallet<T> {
         match funding_model {
             FundingModel::SimpleCrowdfunding { start_time, end_time, soft_cap, hard_cap } => {
                 let asset_to_raise = Default::default();
-                Self::create_simple_crowdfunding(
+                T::create_simple_crowdfunding(
                     creator,
                     external_id,
                     start_time,
@@ -251,84 +313,6 @@ impl<T: Config> Pallet<T> {
                 )
             },
         }
-    }
-
-    pub(super) fn create_simple_crowdfunding(
-        creator: T::AccountId,
-        external_id: InvestmentId,
-        start_time: T::Moment,
-        end_time: T::Moment,
-        asset_to_raise: FTokenId<T>,
-        soft_cap: FTokenBalance<T>,
-        hard_cap: FTokenBalance<T>,
-        shares: Vec<FToken<T>>,
-    ) -> DispatchResult {
-        let timestamp = pallet_timestamp::Pallet::<T>::get();
-        ensure!(
-            start_time >= timestamp,
-            Error::<T>::StartTimeMustBeLaterOrEqualCurrentMoment
-        );
-        ensure!(
-            end_time > start_time,
-            Error::<T>::EndTimeMustBeLaterStartTime
-        );
-
-        ensure!(
-            soft_cap > Zero::zero(),
-            Error::<T>::SoftCapMustBeGreaterOrEqualMinimum
-        );
-        ensure!(
-            hard_cap >= soft_cap,
-            Error::<T>::HardCapShouldBeGreaterOrEqualSoftCap
-        );
-
-        ensure!(!shares.is_empty(), Error::<T>::SecurityTokenNotSpecified);
-        for share in &shares {
-            ensure!(share.id() != &asset_to_raise, Error::<T>::WrongAssetId);
-
-            ensure!(
-                share.payload() > &Zero::zero(),
-                Error::<T>::AssetAmountMustBePositive
-            );
-        }
-
-        ensure!(
-            !SimpleCrowdfundingMapV1::<T>::contains_key(external_id),
-            Error::<T>::AlreadyExists
-        );
-
-        if let Err(e) = T::_lock_shares(
-            &creator,
-            external_id,
-            shares.as_slice(),
-        ) {
-            match e {
-                ReserveError::<FTokenId<T>>::NotEnoughBalance =>
-                    return Err(Error::<T>::BalanceIsNotEnough.into()),
-                ReserveError::<FTokenId<T>>::AssetTransferFailed(_) =>
-                    return Err(Error::<T>::FailedToReserveAsset.into()),
-                ReserveError::<FTokenId<T>>::AlreadyReserved =>
-                    return Err(Error::<T>::AlreadyExists.into()),
-            };
-        }
-
-        let new_token_sale = SimpleCrowdfunding {
-            created_ctx: T::TransactionCtx::current().id(),
-            external_id,
-            start_time,
-            end_time,
-            asset_id: asset_to_raise,
-            soft_cap: SerializableAtLeast32BitUnsigned(soft_cap),
-            hard_cap: SerializableAtLeast32BitUnsigned(hard_cap),
-            shares: shares.into_iter().map(|x| Asset::new(*x.id(), *x.payload())).collect(),
-            ..Default::default()
-        };
-
-        SimpleCrowdfundingMapV1::<T>::insert(external_id, new_token_sale);
-
-        Self::deposit_event(Event::<T>::SimpleCrowdfundingCreated(external_id));
-
-        Ok(())
     }
 
     pub(super) fn activate_crowdfunding_impl(sale_id: InvestmentId) -> DispatchResult {
