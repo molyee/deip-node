@@ -43,7 +43,6 @@ pub type Investment<T: Config> = Contribution<
     T::Moment
 >;
 
-use deip_asset_system::{TransferUnitT, TransferSourceT, TransferT, TransferTargetT, };
 use frame_support::traits::{Currency, ReservableCurrency, WithdrawReasons, ExistenceRequirement};
 use pallet_assets::AssetBalance;
 
@@ -130,7 +129,7 @@ pub trait Module<T: Config> {
     }
 
     // #[transactional]
-    fn _unreserve(
+    fn _unlock_shares(
         sale: &SimpleCrowdfundingOf<T>,
         sale_owner: T::AccountId,
         // shares: &[(DeipAssetId<T>, DeipAssetBalance<T>)],
@@ -144,12 +143,12 @@ pub trait Module<T: Config> {
 
         for asset_id in sale.shares.iter().map(|x| x.id()).chain(&[sale.asset_id]) {
 
-            let amount = T::AssetTransfer::balance(*asset_id, &sale_account);
-            if amount.is_zero() {
+            let total = T::Asset::balance(*asset_id, &sale_account);
+            if total.payload().is_zero() {
                 continue
             }
 
-            T::Asset::new(*asset_id, amount).transfer(
+            total.transfer(
                 sale_account.clone(),
                 sale_owner.clone(),
             );
@@ -381,7 +380,7 @@ impl<T: Config> Pallet<T> {
             InvestmentMapV1::<T>::remove(sale.external_id);
         }
 
-        T::_unreserve(
+        T::_unlock_shares(
             sale,
             // sale_owner,
             Default::default()
@@ -413,7 +412,7 @@ impl<T: Config> Pallet<T> {
             }
         }
 
-        T::_unreserve(
+        T::_unlock_shares(
             sale,
             // sale_owner
             Default::default()
@@ -587,7 +586,7 @@ impl<T: Config> ContributionAcceptT<T> for ContributionAccept<'_, T> {
             return share_remains
         }
 
-        use deip_asset_system::{Transfer, TransferT, asset::{GenericAssetT}};
+        use deip_asset_system::{asset::{GenericAssetT}};
 
         T::_share(
             &self.sale,

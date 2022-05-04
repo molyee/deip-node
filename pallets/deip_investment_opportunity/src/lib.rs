@@ -63,7 +63,7 @@ pub mod pallet {
     use crate::module::{InvestmentId, FundingModelOf, FToken, FTokenBalance, FTokenId};
 
     use crate::weights::WeightInfo;
-    use deip_asset_system::{DeipAssetSystem, TransferUnitT, asset::GenericAssetT};
+    use deip_asset_system::{DeipAssetSystem, asset::{GenericAssetT, TransferUnitT, FTokenT}};
     use deip_transaction_ctx::{PortalCtxT, TransactionCtxId};
 
     /// Configuration trait
@@ -99,7 +99,7 @@ pub mod pallet {
         type AssetId: Default + AtLeast32BitUnsigned + Clone + Parameter + Member + Copy;
         type AssetPayload: Default + AtLeast32BitUnsigned + Clone + Parameter + Member + Copy;
         type Asset:
-            GenericAssetT<
+            FTokenT<
                 <Self as Config>::AssetId,
                 <Self as Config>::AssetPayload,
                 Self::AccountId,
