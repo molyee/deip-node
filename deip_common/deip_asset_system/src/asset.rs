@@ -61,9 +61,9 @@ impl<Id, Payload, Account, Impl>
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub struct GenericFToken // type name
-    <Id, Payload, Account, Impl> // type template
-    (GenericAsset<Id, Payload, Account, Impl>) // type structure
-    where Self: GenericAssetT<Id, Payload, Account, Impl>; // type class/signature
+    <Id, Balance, Account, Impl> // type template
+    (GenericAsset<Id, Balance, Account, Impl>) // type structure
+    where Self: FTokenT<Id, Balance, Account, Impl>; // type class/signature
 
 impl<Account, Impl: fungibles::Transfer<Account>>
     TransferUnitT<Account, Impl>

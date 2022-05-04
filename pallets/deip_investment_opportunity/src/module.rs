@@ -51,17 +51,6 @@ impl<T: Config> Module<T> for T {}
 
 pub trait Module<T: Config> {
 
-    fn _refund(
-        from: &SimpleCrowdfundingOf<T>,
-        to: &Investment<T>,
-    )
-    {
-        T::Asset::new(from.asset_id, to.amount).transfer(
-            investment_account::<T>(from.external_id.as_bytes()),
-            to.owner.clone(),
-        );
-    }
-
     fn _share(
         from: &SimpleCrowdfundingOf<T>,
         to: &Investment<T>,
@@ -129,19 +118,33 @@ pub trait Module<T: Config> {
     }
 
     // #[transactional]
-    fn _unlock_shares(
+    fn _abort(
         sale: &SimpleCrowdfundingOf<T>,
         sale_owner: T::AccountId,
         // shares: &[(DeipAssetId<T>, DeipAssetBalance<T>)],
-        // asset_to_raise: DeipAssetId<T>,
     ) -> Result<(), UnreserveError<FTokenId<T>>>
     {
+        let sale_account = investment_account::<T>(sale.external_id.as_bytes());
+
+        if let Ok(ref c) = InvestmentMapV1::<T>::try_get(sale.external_id) {
+            for (_, ref investment) in c {
+
+                T::Asset::new(sale.asset_id, investment.amount).transfer(
+                    sale_account.clone(),
+                    investment.owner.clone(),
+                );
+
+                frame_system::Pallet::<T>::dec_consumers(&investment.owner);
+            }
+            InvestmentMapV1::<T>::remove(sale.external_id);
+        }
+
+        //////////////////
+
         let deposited =
             T::Currency::deposit_creating(&sale_owner, T::Currency::minimum_balance());
 
-        let sale_account = investment_account::<T>(sale.external_id.as_bytes());
-
-        for asset_id in sale.shares.iter().map(|x| x.id()).chain(&[sale.asset_id]) {
+        for asset_id in sale.shares.iter().map(|x| x.id()) {
 
             let total = T::Asset::balance(*asset_id, &sale_account);
             if total.payload().is_zero() {
@@ -156,6 +159,43 @@ pub trait Module<T: Config> {
             //     return Err(UnreserveError::AssetTransferFailed(*asset_id))
             // }
         }
+
+        T::Currency::settle(
+            &sale_account,
+            deposited,
+            WithdrawReasons::TRANSFER,
+            ExistenceRequirement::AllowDeath,
+        )
+        .unwrap_or_else(|_| panic!("should be reserved in transactionally_reserve"));
+
+        Ok(())
+    }
+
+    // #[transactional]
+    fn _raise(
+        sale: &SimpleCrowdfundingOf<T>,
+        sale_owner: T::AccountId,
+        // shares: &[(DeipAssetId<T>, DeipAssetBalance<T>)],
+        // asset_to_raise: DeipAssetId<T>,
+    ) -> Result<(), UnreserveError<FTokenId<T>>>
+    {
+        let deposited =
+            T::Currency::deposit_creating(&sale_owner, T::Currency::minimum_balance());
+
+        let sale_account = investment_account::<T>(sale.external_id.as_bytes());
+
+        let total = T::Asset::balance(sale.asset_id, &sale_account);
+        if total.payload().is_zero() {
+            return Ok(())
+        }
+
+        total.transfer(
+            sale_account.clone(),
+            sale_owner.clone(),
+        );
+        // if result.is_err() {
+        //     return Err(UnreserveError::AssetTransferFailed(*asset_id))
+        // }
 
         T::Currency::settle(
             &sale_account,
@@ -320,7 +360,12 @@ impl<T: Config> Pallet<T> {
         };
 
         sale.status = SimpleCrowdfundingStatus::Expired;
-        Self::refund(&sale);
+        T::_abort(
+            &sale,
+            // sale_owner,
+            Default::default()
+        ).unwrap_or_else(|_| panic!("assets should be reserved earlier"));
+        Self::deposit_event(Event::SimpleCrowdfundingExpired(sale.external_id));
         SimpleCrowdfundingMapV1::<T>::insert(sale_id, sale);
 
         Ok(None.into())
@@ -370,25 +415,6 @@ impl<T: Config> Pallet<T> {
         }
     }
 
-    fn refund(sale: &SimpleCrowdfundingOf<T>) {
-        if let Ok(ref c) = InvestmentMapV1::<T>::try_get(sale.external_id) {
-            for (_, ref contribution) in c {
-                T::_refund(sale, contribution);
-
-                frame_system::Pallet::<T>::dec_consumers(&contribution.owner);
-            }
-            InvestmentMapV1::<T>::remove(sale.external_id);
-        }
-
-        T::_unlock_shares(
-            sale,
-            // sale_owner,
-            Default::default()
-        ).unwrap_or_else(|_| panic!("assets should be reserved earlier"));
-
-        Self::deposit_event(Event::SimpleCrowdfundingExpired(sale.external_id));
-    }
-
     fn finish(sale: &SimpleCrowdfundingOf<T>) {
         let investments = InvestmentMapV1::<T>::try_get(sale.external_id)
             .expect("about to finish, but there are no contributions?");
@@ -412,7 +438,7 @@ impl<T: Config> Pallet<T> {
             }
         }
 
-        T::_unlock_shares(
+        T::_raise(
             sale,
             // sale_owner
             Default::default()
