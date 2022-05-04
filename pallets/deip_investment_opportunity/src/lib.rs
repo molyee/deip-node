@@ -89,7 +89,7 @@ pub mod pallet {
 
         type SourceId: Member + Parameter;
 
-        type AssetTransfer:
+        type AssetImpl:
             fungibles::Transfer<Self::AccountId> +
             fungibles::Inspect<
                 Self::AccountId,
@@ -103,9 +103,9 @@ pub mod pallet {
                 <Self as Config>::AssetId,
                 <Self as Config>::AssetPayload,
                 Self::AccountId,
-                Self::AssetTransfer
+                Self::AssetImpl
             > +
-            TransferUnitT<Self::AccountId, Self::AssetTransfer> +
+            TransferUnitT<Self::AccountId, Self::AssetImpl> +
             Default + Parameter + Member + Clone + Copy;
 
         type Currency: ReservableCurrency<Self::AccountId>;

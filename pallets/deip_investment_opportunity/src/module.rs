@@ -44,12 +44,52 @@ pub type Investment<T: Config> = Contribution<
 >;
 
 use frame_support::traits::{Currency, ReservableCurrency, WithdrawReasons, ExistenceRequirement};
-use pallet_assets::AssetBalance;
 
-// impl<T: Config, Unit: TransferUnitT<T::AccountId>> Module<Unit, T::AssetTransfer> for T {}
+impl<T: Config> CrowdfundingAccount<T> for T {}
+
+trait CrowdfundingAccount<T: Config> {
+
+    fn _create_account(
+        creator: &T::AccountId,
+        investment_id: &InvestmentId,
+    ) -> Result<T::AccountId, DispatchError>
+    {
+        let investment_account = investment_account::<T>(investment_id.as_bytes());
+
+        let reserved = T::Currency::withdraw(
+            creator,
+            T::Currency::minimum_balance(),
+            WithdrawReasons::RESERVE,
+            ExistenceRequirement::AllowDeath,
+        )?;
+
+        T::Currency::resolve_creating(&investment_account, reserved);
+
+        Ok(investment_account)
+    }
+
+    fn _destroy_account(
+        owner: &T::AccountId,
+        account: &InvestmentId
+    )
+    {
+        let deposited =
+            T::Currency::deposit_creating(
+                &owner,
+                T::Currency::minimum_balance()
+            );
+        T::Currency::settle(
+            &investment_account::<T>(account.as_bytes()),
+            deposited,
+            WithdrawReasons::TRANSFER,
+            ExistenceRequirement::AllowDeath,
+        ).unwrap_or_else(|_| panic!("should be reserved in transactionally_reserve"));
+    }
+}
+
 impl<T: Config> Module<T> for T {}
 
-pub trait Module<T: Config> {
+trait Module<T: Config>: CrowdfundingAccount<T> {
 
     fn _share(
         from: &SimpleCrowdfundingOf<T>,
@@ -76,25 +116,6 @@ pub trait Module<T: Config> {
         Ok(())
     }
 
-    fn _create_investment_account(
-        creator: &T::AccountId,
-        investment_id: &InvestmentId,
-    ) -> Result<T::AccountId, DispatchError>
-    {
-        let investment_account = investment_account::<T>(investment_id.as_bytes());
-
-        let reserved = T::Currency::withdraw(
-            creator,
-            T::Currency::minimum_balance(),
-            WithdrawReasons::RESERVE,
-            ExistenceRequirement::AllowDeath,
-        )?;
-
-        T::Currency::resolve_creating(&investment_account, reserved);
-
-        Ok(investment_account)
-    }
-
     // #[transactional]
     fn _lock_shares(
         creator: &T::AccountId,
@@ -102,7 +123,7 @@ pub trait Module<T: Config> {
         shares: &[FToken<T>],
     ) -> Result<(), ReserveError<FTokenId<T>>>
     {
-        let investment_account = Self::_create_investment_account(
+        let investment_account = Self::_create_account(
             creator,
             &id
         ).map_err(|_| ReserveError::NotEnoughBalance)?;
@@ -120,7 +141,7 @@ pub trait Module<T: Config> {
     // #[transactional]
     fn _abort(
         sale: &SimpleCrowdfundingOf<T>,
-        sale_owner: T::AccountId,
+        sale_owner: &T::AccountId,
         // shares: &[(DeipAssetId<T>, DeipAssetBalance<T>)],
     ) -> Result<(), UnreserveError<FTokenId<T>>>
     {
@@ -141,9 +162,6 @@ pub trait Module<T: Config> {
 
         //////////////////
 
-        let deposited =
-            T::Currency::deposit_creating(&sale_owner, T::Currency::minimum_balance());
-
         for asset_id in sale.shares.iter().map(|x| x.id()) {
 
             let total = T::Asset::balance(*asset_id, &sale_account);
@@ -160,13 +178,7 @@ pub trait Module<T: Config> {
             // }
         }
 
-        T::Currency::settle(
-            &sale_account,
-            deposited,
-            WithdrawReasons::TRANSFER,
-            ExistenceRequirement::AllowDeath,
-        )
-        .unwrap_or_else(|_| panic!("should be reserved in transactionally_reserve"));
+        Self::_destroy_account(sale_owner, &sale.external_id);
 
         Ok(())
     }
@@ -363,7 +375,7 @@ impl<T: Config> Pallet<T> {
         T::_abort(
             &sale,
             // sale_owner,
-            Default::default()
+            &Default::default()
         ).unwrap_or_else(|_| panic!("assets should be reserved earlier"));
         Self::deposit_event(Event::SimpleCrowdfundingExpired(sale.external_id));
         SimpleCrowdfundingMapV1::<T>::insert(sale_id, sale);
