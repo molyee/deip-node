@@ -50,36 +50,37 @@ impl<T: Config> CrowdfundingAccount<T> for T {}
 trait CrowdfundingAccount<T: Config> {
 
     fn _create_account(
-        creator: &T::AccountId,
-        investment_id: &InvestmentId,
+        cf_owner: &T::AccountId,
+        cf_id: &InvestmentId,
     ) -> Result<T::AccountId, DispatchError>
     {
-        let investment_account = investment_account::<T>(investment_id.as_bytes());
-
         let reserved = T::Currency::withdraw(
-            creator,
+            cf_owner,
             T::Currency::minimum_balance(),
             WithdrawReasons::RESERVE,
             ExistenceRequirement::AllowDeath,
         )?;
-
-        T::Currency::resolve_creating(&investment_account, reserved);
+        let investment_account = investment_account::<T>(cf_id.as_bytes());
+        T::Currency::resolve_creating(
+            &investment_account,
+            reserved
+        );
 
         Ok(investment_account)
     }
 
     fn _destroy_account(
-        owner: &T::AccountId,
-        account: &InvestmentId
+        cf_owner: &T::AccountId,
+        cf_id: &InvestmentId
     )
     {
         let deposited =
             T::Currency::deposit_creating(
-                &owner,
+                &cf_owner,
                 T::Currency::minimum_balance()
             );
         T::Currency::settle(
-            &investment_account::<T>(account.as_bytes()),
+            &investment_account::<T>(cf_id.as_bytes()),
             deposited,
             WithdrawReasons::TRANSFER,
             ExistenceRequirement::AllowDeath,
