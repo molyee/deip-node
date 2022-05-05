@@ -156,19 +156,20 @@ trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
             // };
         }
 
-        let new_token_sale = SimpleCrowdfunding {
-            created_ctx: T::TransactionCtx::current().id(),
+        use crate::crowdfunding::CrowdfundingT;
+
+        let crowdfunding = T::Crowdfunding::new(
+            T::TransactionCtx::current(),
+            creator,
             external_id,
             start_time,
             end_time,
-            asset_id: asset_to_raise,
-            soft_cap: SerializableAtLeast32BitUnsigned(soft_cap),
-            hard_cap: SerializableAtLeast32BitUnsigned(hard_cap),
-            shares: shares.into_iter().map(|x| Asset::new(*x.id(), *x.payload())).collect(),
-            ..Default::default()
-        };
-
-        SimpleCrowdfundingMapV1::<T>::insert(external_id, new_token_sale);
+            asset_to_raise,
+            soft_cap,
+            hard_cap,
+            shares
+        );
+        T::Crowdfunding::insert(crowdfunding);
 
         Pallet::<T>::deposit_event(Event::<T>::SimpleCrowdfundingCreated(external_id));
 

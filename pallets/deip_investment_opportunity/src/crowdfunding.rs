@@ -8,12 +8,18 @@ use sp_std::prelude::*;
 use sp_std::default::Default;
 use deip_serializable_u128::SerializableAtLeast32BitUnsigned;
 use deip_asset_system::asset::{Asset, GenericAssetT};
+use deip_transaction_ctx::{TransactionCtxId, TransactionCtxT};
 
 use crate::module::{FToken, FTokenId, FTokenBalance};
 use crate::{SimpleCrowdfundingMapV2};
 
 impl<T: crate::Config> CrowdfundingT<T>
-    for SimpleCrowdfunding<T::Moment, FTokenId<T>, FTokenBalance<T>, T::TransactionCtx>
+    for SimpleCrowdfunding<
+        T::Moment,
+        FTokenId<T>,
+        FTokenBalance<T>,
+        TransactionCtxId<T::TransactionCtx>
+    >
 {
     fn new(
         ctx: T::TransactionCtx,
@@ -28,7 +34,7 @@ impl<T: crate::Config> CrowdfundingT<T>
     ) -> Self
     {
         SimpleCrowdfunding {
-            created_ctx: ctx,
+            created_ctx: ctx.id(),
             external_id,
             start_time,
             end_time,
@@ -67,7 +73,7 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
 
     fn register_share(&mut self, share: FToken<T>);
 
-    fn insert_crowdfunding(cf: T::Crowdfunding) {
+    fn insert(cf: T::Crowdfunding) {
         SimpleCrowdfundingMapV2::<T>::insert(*cf.id(), cf);
     }
 }
