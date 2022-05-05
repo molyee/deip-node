@@ -65,11 +65,31 @@ impl<T: crate::Config> CrowdfundingT<T>
         self.v1.id()
     }
 
-    fn register_share(&mut self) {
-        if (self.registered_shares as usize) < self.v1.shares.len() {
-            self.registered_shares += 1;
+    fn register_share(&mut self) -> Result<(), SimpleCrowdfundingStatus> {
+        if all_shares_registered::<T>(self) {
+            return Err(self.v1.status)
         }
+
+        self.registered_shares += 1;
+
+        if all_shares_registered::<T>(self) {
+            self.v1.status = SimpleCrowdfundingStatus::Inactive;
+        }
+        Ok(())
     }
+}
+
+fn all_shares_registered<T: crate::Config>(
+    cf: &SimpleCrowdfundingV2<
+        T::AccountId,
+        T::Moment,
+        FTokenId<T>,
+        FTokenBalance<T>,
+        TransactionCtxId<T::TransactionCtx>
+    >
+) -> bool
+{
+    (cf.registered_shares as usize) == cf.v1.shares.len()
 }
 
 impl<T: crate::Config> CrowdfundingT<T>
@@ -98,7 +118,7 @@ impl<T: crate::Config> CrowdfundingT<T>
             external_id,
             start_time,
             end_time,
-            status: Default::default(),
+            status: SimpleCrowdfundingStatus::Pending,
             asset_id,
             total_amount: Default::default(),
             soft_cap: SerializableAtLeast32BitUnsigned(soft_cap),
@@ -111,29 +131,9 @@ impl<T: crate::Config> CrowdfundingT<T>
         &self.external_id
     }
 
-    fn register_share(&mut self) {}
-}
-
-fn merge_shares<T: crate::Config>(
-    left: FToken<T>,
-    right: Option<FToken<T>>
-) -> (FToken<T>, Option<FToken<T>>)
-{
-    let right = if right.is_none() {
-        return (left, right)
-    } else {
-        right.unwrap()
-    };
-
-    if left.id() != right.id() {
-        return (left, Some(right))
+    fn register_share(&mut self) -> Result<(), SimpleCrowdfundingStatus> {
+        Err(self.status)
     }
-
-    let merged = <FToken<T>>::new(
-        *left.id(),
-        (*left.payload()).saturating_add(*right.payload())
-    );
-    (merged, None)
 }
 
 pub trait CrowdfundingT<T: crate::Config>: Sized {
@@ -152,7 +152,7 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
 
     fn id(&self) -> &InvestmentId;
 
-    fn register_share(&mut self);
+    fn register_share(&mut self) -> Result<(), SimpleCrowdfundingStatus>;
 
     fn not_exist(id: InvestmentId) -> Result<(), crate::Error<T>> {
         Ok(ensure!(
@@ -182,6 +182,7 @@ pub enum SimpleCrowdfundingStatus {
     Finished,
     Expired,
     Inactive,
+    Pending
 }
 
 impl Default for SimpleCrowdfundingStatus {

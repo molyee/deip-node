@@ -168,7 +168,7 @@ trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
 
     fn _register_share(id: InvestmentId) -> DispatchResult {
         let mut cf = T::Crowdfunding::find(id)?;
-        cf.register_share();
+        cf.register_share().map_err(|_| Error::<T>::TooMuchShares)?;
         T::Crowdfunding::insert(cf);
         Ok(())
     }
