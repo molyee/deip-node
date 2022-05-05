@@ -5,8 +5,72 @@ use sp_runtime::traits::{AtLeast32BitUnsigned};
 use frame_support::{RuntimeDebug};
 use scale_info::TypeInfo;
 use sp_std::prelude::*;
+use sp_std::default::Default;
 use deip_serializable_u128::SerializableAtLeast32BitUnsigned;
-use deip_asset_system::asset::Asset;
+use deip_asset_system::asset::{Asset, GenericAssetT};
+
+use crate::module::{FToken, FTokenId, FTokenBalance};
+use crate::{SimpleCrowdfundingMapV2};
+
+impl<T: crate::Config> CrowdfundingT<T>
+    for SimpleCrowdfunding<T::Moment, FTokenId<T>, FTokenBalance<T>, T::TransactionCtx>
+{
+    fn new(
+        ctx: T::TransactionCtx,
+        creator: T::AccountId,
+        external_id: InvestmentId,
+        start_time: T::Moment,
+        end_time: T::Moment,
+        asset_id: FTokenId<T>,
+        soft_cap: FTokenBalance<T>,
+        hard_cap: FTokenBalance<T>,
+        shares: Vec<FToken<T>>
+    ) -> Self
+    {
+        SimpleCrowdfunding {
+            created_ctx: ctx,
+            external_id,
+            start_time,
+            end_time,
+            status: Default::default(),
+            asset_id,
+            total_amount: Default::default(),
+            soft_cap: SerializableAtLeast32BitUnsigned(soft_cap),
+            hard_cap: SerializableAtLeast32BitUnsigned(hard_cap),
+            shares: shares.into_iter().map(|x| Asset::new(*x.id(), *x.payload())).collect(),
+        }
+    }
+
+    fn id(&self) -> &InvestmentId {
+        todo!()
+    }
+
+    fn register_share(&mut self, share: FToken<T>) {
+        todo!()
+    }
+}
+
+pub trait CrowdfundingT<T: crate::Config>: Sized {
+    fn new(
+        ctx: T::TransactionCtx,
+        creator: T::AccountId,
+        external_id: InvestmentId,
+        start_time: T::Moment,
+        end_time: T::Moment,
+        asset_id: FTokenId<T>,
+        soft_cap: FTokenBalance<T>,
+        hard_cap: FTokenBalance<T>,
+        shares: Vec<FToken<T>>,
+    ) -> Self;
+
+    fn id(&self) -> &InvestmentId;
+
+    fn register_share(&mut self, share: FToken<T>);
+
+    fn insert_crowdfunding(cf: T::Crowdfunding) {
+        SimpleCrowdfundingMapV2::<T>::insert(*cf.id(), cf);
+    }
+}
 
 /// Unique InvestmentOpportunity ID reference
 pub type InvestmentId = sp_core::H160;

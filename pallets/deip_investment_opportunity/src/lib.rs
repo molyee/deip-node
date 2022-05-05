@@ -110,6 +110,8 @@ pub mod pallet {
             Default + Parameter + Member + Clone + Copy;
 
         type Currency: ReservableCurrency<Self::AccountId>;
+
+        type Crowdfunding: crate::crowdfunding::CrowdfundingT<Self> + Parameter + Member;
     }
 
     use frame_support::traits::StorageVersion;
@@ -374,5 +376,11 @@ pub mod pallet {
         Blake2_128Concat,
         InvestmentId,
         SimpleCrowdfundingOf<T>,
+    >;
+    #[pallet::storage]
+    pub type SimpleCrowdfundingMapV2<T: Config> = StorageMap<_,
+        Blake2_128Concat,
+        InvestmentId,
+        T::Crowdfunding
     >;
 }
