@@ -138,13 +138,6 @@ trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
             &external_id
         ).map_err(|_| Error::<T>::BalanceIsNotEnough)?;
 
-        for unit in shares.iter() {
-            unit.transfer(
-                creator.clone(),
-                investment_account.clone(),
-            );
-        }
-
         use crate::crowdfunding::CrowdfundingT;
 
         let crowdfunding = T::Crowdfunding::new(
@@ -168,7 +161,11 @@ trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
 
     fn _register_share(id: InvestmentId) -> DispatchResult {
         let mut cf = T::Crowdfunding::find(id)?;
-        cf.register_share().map_err(|_| Error::<T>::TooMuchShares)?;
+        let share = cf.register_share().map_err(|_| Error::<T>::TooMuchShares)?;
+        share.transfer(
+            cf.creator().clone(),
+            cf.account().clone(),
+        );
         T::Crowdfunding::insert(cf);
         Ok(())
     }

@@ -43,18 +43,18 @@ impl<T: crate::Config> CrowdfundingT<T>
     ) -> Self
     {
         SimpleCrowdfundingV2 {
-            v1: SimpleCrowdfunding::new(
-                ctx,
-                Default::default(),
-                Default::default(),
+            v1: SimpleCrowdfunding {
+                created_ctx: ctx.id(),
                 external_id,
                 start_time,
                 end_time,
+                status: SimpleCrowdfundingStatus::Pending,
                 asset_id,
-                soft_cap,
-                hard_cap,
-                shares
-            ),
+                total_amount: Default::default(),
+                soft_cap: SerializableAtLeast32BitUnsigned(soft_cap),
+                hard_cap: SerializableAtLeast32BitUnsigned(hard_cap),
+                shares: shares.into_iter().map(|x| Asset::new(*x.id(), *x.payload())).collect(),
+            },
             creator,
             account,
             registered_shares: 0,
@@ -65,7 +65,15 @@ impl<T: crate::Config> CrowdfundingT<T>
         self.v1.id()
     }
 
-    fn register_share(&mut self) -> Result<(), SimpleCrowdfundingStatus> {
+    fn creator(&self) -> &T::AccountId {
+        &self.creator
+    }
+
+    fn account(&self) -> &T::AccountId {
+        &self.account
+    }
+
+    fn register_share(&mut self) -> Result<FToken<T>, SimpleCrowdfundingStatus> {
         if all_shares_registered::<T>(self) {
             return Err(self.v1.status)
         }
@@ -75,7 +83,9 @@ impl<T: crate::Config> CrowdfundingT<T>
         if all_shares_registered::<T>(self) {
             self.v1.status = SimpleCrowdfundingStatus::Inactive;
         }
-        Ok(())
+        let idx = (self.registered_shares - 1) as usize;
+        let share = &self.v1.shares[idx];
+        Ok(T::Asset::new(*share.id(), *share.amount()))
     }
 }
 
@@ -90,50 +100,6 @@ fn all_shares_registered<T: crate::Config>(
 ) -> bool
 {
     (cf.registered_shares as usize) == cf.v1.shares.len()
-}
-
-impl<T: crate::Config> CrowdfundingT<T>
-    for SimpleCrowdfunding<
-        T::Moment,
-        FTokenId<T>,
-        FTokenBalance<T>,
-        TransactionCtxId<T::TransactionCtx>
-    >
-{
-    fn new(
-        ctx: T::TransactionCtx,
-        creator: T::AccountId,
-        account: T::AccountId,
-        external_id: InvestmentId,
-        start_time: T::Moment,
-        end_time: T::Moment,
-        asset_id: FTokenId<T>,
-        soft_cap: FTokenBalance<T>,
-        hard_cap: FTokenBalance<T>,
-        shares: Vec<FToken<T>>
-    ) -> Self
-    {
-        SimpleCrowdfunding {
-            created_ctx: ctx.id(),
-            external_id,
-            start_time,
-            end_time,
-            status: SimpleCrowdfundingStatus::Pending,
-            asset_id,
-            total_amount: Default::default(),
-            soft_cap: SerializableAtLeast32BitUnsigned(soft_cap),
-            hard_cap: SerializableAtLeast32BitUnsigned(hard_cap),
-            shares: shares.into_iter().map(|x| Asset::new(*x.id(), *x.payload())).collect(),
-        }
-    }
-
-    fn id(&self) -> &InvestmentId {
-        &self.external_id
-    }
-
-    fn register_share(&mut self) -> Result<(), SimpleCrowdfundingStatus> {
-        Err(self.status)
-    }
 }
 
 pub trait CrowdfundingT<T: crate::Config>: Sized {
@@ -152,7 +118,11 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
 
     fn id(&self) -> &InvestmentId;
 
-    fn register_share(&mut self) -> Result<(), SimpleCrowdfundingStatus>;
+    fn creator(&self) -> &T::AccountId;
+
+    fn account(&self) -> &T::AccountId;
+
+    fn register_share(&mut self) -> Result<FToken<T>, SimpleCrowdfundingStatus>;
 
     fn not_exist(id: InvestmentId) -> Result<(), crate::Error<T>> {
         Ok(ensure!(
