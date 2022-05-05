@@ -3,7 +3,6 @@
 extern crate core;
 
 pub mod asset;
-pub mod investment_opportunity;
 pub mod asset_bus;
 
 pub use deip_assets_error::{ReserveError, UnreserveError};

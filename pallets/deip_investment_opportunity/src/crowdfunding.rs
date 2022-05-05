@@ -6,7 +6,7 @@ use frame_support::{RuntimeDebug};
 use scale_info::TypeInfo;
 use sp_std::prelude::*;
 use deip_serializable_u128::SerializableAtLeast32BitUnsigned;
-use crate::asset::Asset;
+use deip_asset_system::asset::Asset;
 
 /// Unique InvestmentOpportunity ID reference
 pub type InvestmentId = sp_core::H160;

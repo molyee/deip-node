@@ -17,7 +17,7 @@ use sp_core::H160;
 use sp_std::prelude::*;
 use crate::{Config, Error, Event, Call, Pallet};
 use deip_asset_system::{DeipAssetSystem, ReserveError, UnreserveError};
-pub use deip_asset_system::investment_opportunity::*;
+pub use crate::crowdfunding::*;
 pub use deip_asset_system::asset::*;
 use crate::{SimpleCrowdfundingMapV1, InvestmentMapV1};
 use crate::weights::WeightInfo;
@@ -88,36 +88,10 @@ trait CrowdfundingAccount<T: Config> {
     }
 }
 
-impl<T: Config> Module<T> for T {}
+impl<T: Config + CrowdfundingAccount<T>> CrowdfundingCreate<T> for T {}
 
-trait Module<T: Config>: CrowdfundingAccount<T> {
-
-    fn _share(
-        from: &SimpleCrowdfundingOf<T>,
-        to: &Investment<T>,
-        unit: T::Asset,
-    )
-    {
-        unit.transfer(
-            investment_account::<T>(from.external_id.as_bytes()),
-            to.owner.clone(),
-        );
-    }
-
-    fn _purchase(
-        from: T::AccountId,
-        to: &SimpleCrowdfundingOf<T>,
-        amount: FTokenBalance<T>,
-    ) -> Result<(), UnreserveError<FTokenId<T>>>
-    {
-        T::Asset::new(to.asset_id, amount).transfer(
-            from,
-            investment_account::<T>(to.external_id.as_bytes())
-        );
-        Ok(())
-    }
-
-    fn create_simple_crowdfunding(
+trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
+    fn _create_crowdfunding(
         creator: T::AccountId,
         external_id: InvestmentId,
         start_time: T::Moment,
@@ -198,6 +172,42 @@ trait Module<T: Config>: CrowdfundingAccount<T> {
 
         Pallet::<T>::deposit_event(Event::<T>::SimpleCrowdfundingCreated(external_id));
 
+        Ok(())
+    }
+}
+
+impl<T: Config> Module<T> for T
+    where T: CrowdfundingAccount<T>,
+          T: CrowdfundingCreate<T>
+{}
+
+trait Module<T: Config>:
+    CrowdfundingAccount<T> +
+    CrowdfundingCreate<T>
+{
+
+    fn _share(
+        from: &SimpleCrowdfundingOf<T>,
+        to: &Investment<T>,
+        unit: T::Asset,
+    )
+    {
+        unit.transfer(
+            investment_account::<T>(from.external_id.as_bytes()),
+            to.owner.clone(),
+        );
+    }
+
+    fn _purchase(
+        from: T::AccountId,
+        to: &SimpleCrowdfundingOf<T>,
+        amount: FTokenBalance<T>,
+    ) -> Result<(), UnreserveError<FTokenId<T>>>
+    {
+        T::Asset::new(to.asset_id, amount).transfer(
+            from,
+            investment_account::<T>(to.external_id.as_bytes())
+        );
         Ok(())
     }
 
@@ -301,7 +311,7 @@ impl<T: Config> Pallet<T> {
         match funding_model {
             FundingModel::SimpleCrowdfunding { start_time, end_time, soft_cap, hard_cap } => {
                 let asset_to_raise = Default::default();
-                T::create_simple_crowdfunding(
+                T::_create_crowdfunding(
                     creator,
                     external_id,
                     start_time,
