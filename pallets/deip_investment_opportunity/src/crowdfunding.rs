@@ -14,6 +14,62 @@ use crate::module::{FToken, FTokenId, FTokenBalance};
 use crate::{SimpleCrowdfundingMapV2};
 
 impl<T: crate::Config> CrowdfundingT<T>
+    for SimpleCrowdfundingV2<
+        T::AccountId,
+        T::Moment,
+        FTokenId<T>,
+        FTokenBalance<T>,
+        TransactionCtxId<T::TransactionCtx>
+    >
+    where
+        SimpleCrowdfunding<
+            T::Moment,
+            FTokenId<T>,
+            FTokenBalance<T>,
+            TransactionCtxId<T::TransactionCtx>
+        >: CrowdfundingT<T>
+{
+    fn new(
+        ctx: T::TransactionCtx,
+        creator: T::AccountId,
+        account: T::AccountId,
+        external_id: InvestmentId,
+        start_time: T::Moment,
+        end_time: T::Moment,
+        asset_id: FTokenId<T>,
+        soft_cap: FTokenBalance<T>,
+        hard_cap: FTokenBalance<T>,
+        shares: Vec<FToken<T>>
+    ) -> Self
+    {
+        SimpleCrowdfundingV2 {
+            v1: SimpleCrowdfunding::new(
+                ctx,
+                Default::default(),
+                Default::default(),
+                external_id,
+                start_time,
+                end_time,
+                asset_id,
+                soft_cap,
+                hard_cap,
+                shares
+            ),
+            creator,
+            account
+        }
+    }
+
+    fn id(&self) -> &InvestmentId {
+        self.v1.id()
+    }
+
+    fn register_share(&mut self, share: FToken<T>) {
+        self.v1.register_share(share)
+    }
+}
+
+impl<T: crate::Config> CrowdfundingT<T>
     for SimpleCrowdfunding<
         T::Moment,
         FTokenId<T>,
@@ -24,6 +80,7 @@ impl<T: crate::Config> CrowdfundingT<T>
     fn new(
         ctx: T::TransactionCtx,
         creator: T::AccountId,
+        account: T::AccountId,
         external_id: InvestmentId,
         start_time: T::Moment,
         end_time: T::Moment,
@@ -48,7 +105,7 @@ impl<T: crate::Config> CrowdfundingT<T>
     }
 
     fn id(&self) -> &InvestmentId {
-        todo!()
+        &self.external_id
     }
 
     fn register_share(&mut self, share: FToken<T>) {
@@ -60,6 +117,7 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
     fn new(
         ctx: T::TransactionCtx,
         creator: T::AccountId,
+        account: T::AccountId,
         external_id: InvestmentId,
         start_time: T::Moment,
         end_time: T::Moment,
@@ -117,8 +175,18 @@ pub enum FundingModel<Moment, Asset> {
 #[derive(Encode, Decode, Clone, Default, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
+pub struct SimpleCrowdfundingV2<Account, Moment, AssetId, AssetBalance: Clone + AtLeast32BitUnsigned, CtxId> {
+    v1: SimpleCrowdfunding<Moment, AssetId, AssetBalance, CtxId>,
+    creator: Account,
+    account: Account,
+}
+
+/// The object represents a sale of tokens with various parameters.
+#[derive(Encode, Decode, Clone, Default, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub struct SimpleCrowdfunding<Moment, AssetId, AssetBalance: Clone + AtLeast32BitUnsigned, CtxId> {
-    #[cfg_attr(feature = "std", serde(skip))]
+    // #[cfg_attr(feature = "std", serde(skip))]
     pub created_ctx: CtxId,
     /// Reference for external world and uniques control
     pub external_id: InvestmentId,

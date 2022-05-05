@@ -161,6 +161,7 @@ trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
         let crowdfunding = T::Crowdfunding::new(
             T::TransactionCtx::current(),
             creator,
+            investment_account,
             external_id,
             start_time,
             end_time,
