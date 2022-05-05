@@ -2,7 +2,7 @@ use codec::{Encode, Decode};
 #[cfg(feature = "std")]
 use serde::{self, Serialize, Deserialize};
 use sp_runtime::traits::{AtLeast32BitUnsigned};
-use frame_support::{RuntimeDebug};
+use frame_support::{RuntimeDebug, ensure};
 use scale_info::TypeInfo;
 use sp_std::prelude::*;
 use sp_std::default::Default;
@@ -130,6 +130,13 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
     fn id(&self) -> &InvestmentId;
 
     fn register_share(&mut self, share: FToken<T>);
+
+    fn not_exist(id: InvestmentId) -> Result<(), crate::Error<T>> {
+        Ok(ensure!(
+            !SimpleCrowdfundingMapV2::<T>::contains_key(id),
+            crate::Error::<T>::AlreadyExists
+        ))
+    }
 
     fn insert(cf: T::Crowdfunding) {
         SimpleCrowdfundingMapV2::<T>::insert(*cf.id(), cf);

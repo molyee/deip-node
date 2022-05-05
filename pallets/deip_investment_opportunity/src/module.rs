@@ -131,10 +131,7 @@ trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
             );
         }
 
-        ensure!(
-            !SimpleCrowdfundingMapV1::<T>::contains_key(external_id),
-            Error::<T>::AlreadyExists
-        );
+        T::Crowdfunding::not_exist(external_id)?;
 
         let investment_account = Self::_create_account(
             &creator,
@@ -146,14 +143,6 @@ trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
                 creator.clone(),
                 investment_account.clone(),
             );
-            // match e {
-            //     ReserveError::<FTokenId<T>>::NotEnoughBalance =>
-            //         return Err(Error::<T>::BalanceIsNotEnough.into()),
-            //     ReserveError::<FTokenId<T>>::AssetTransferFailed(_) =>
-            //         return Err(Error::<T>::FailedToReserveAsset.into()),
-            //     ReserveError::<FTokenId<T>>::AlreadyReserved =>
-            //         return Err(Error::<T>::AlreadyExists.into()),
-            // };
         }
 
         use crate::crowdfunding::CrowdfundingT;
