@@ -96,7 +96,7 @@ trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
         external_id: InvestmentId,
         start_time: T::Moment,
         end_time: T::Moment,
-        asset_to_raise: FTokenId<T>,
+        asset_id: FTokenId<T>,
         soft_cap: FTokenBalance<T>,
         hard_cap: FTokenBalance<T>,
         shares: Vec<FToken<T>>,
@@ -123,7 +123,7 @@ trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
 
         ensure!(!shares.is_empty(), Error::<T>::SecurityTokenNotSpecified);
         for share in &shares {
-            ensure!(share.id() != &asset_to_raise, Error::<T>::WrongAssetId);
+            ensure!(share.id() != &asset_id, Error::<T>::WrongAssetId);
 
             ensure!(
                 share.payload() > &Zero::zero(),
@@ -154,7 +154,7 @@ trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
             external_id,
             start_time,
             end_time,
-            asset_to_raise,
+            asset_id,
             soft_cap,
             hard_cap,
             shares
@@ -163,6 +163,13 @@ trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
 
         Pallet::<T>::deposit_event(Event::<T>::SimpleCrowdfundingCreated(external_id));
 
+        Ok(())
+    }
+
+    fn _register_share(id: InvestmentId) -> DispatchResult {
+        let mut cf = T::Crowdfunding::find(id)?;
+        cf.register_share();
+        T::Crowdfunding::insert(cf);
         Ok(())
     }
 }

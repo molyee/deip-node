@@ -1,13 +1,13 @@
 use codec::{Encode, Decode};
 #[cfg(feature = "std")]
 use serde::{self, Serialize, Deserialize};
-use sp_runtime::traits::{AtLeast32BitUnsigned};
+use sp_runtime::traits::{AtLeast32BitUnsigned, Saturating};
 use frame_support::{RuntimeDebug, ensure};
 use scale_info::TypeInfo;
 use sp_std::prelude::*;
 use sp_std::default::Default;
 use deip_serializable_u128::SerializableAtLeast32BitUnsigned;
-use deip_asset_system::asset::{Asset, GenericAssetT};
+use deip_asset_system::asset::{Asset, FTokenT, GenericAssetT};
 use deip_transaction_ctx::{TransactionCtxId, TransactionCtxT};
 
 use crate::module::{FToken, FTokenId, FTokenBalance};
@@ -56,7 +56,8 @@ impl<T: crate::Config> CrowdfundingT<T>
                 shares
             ),
             creator,
-            account
+            account,
+            registered_shares: 0,
         }
     }
 
@@ -64,8 +65,10 @@ impl<T: crate::Config> CrowdfundingT<T>
         self.v1.id()
     }
 
-    fn register_share(&mut self, share: FToken<T>) {
-        self.v1.register_share(share)
+    fn register_share(&mut self) {
+        if (self.registered_shares as usize) < self.v1.shares.len() {
+            self.registered_shares += 1;
+        }
     }
 }
 
@@ -108,9 +111,29 @@ impl<T: crate::Config> CrowdfundingT<T>
         &self.external_id
     }
 
-    fn register_share(&mut self, share: FToken<T>) {
-        todo!()
+    fn register_share(&mut self) {}
+}
+
+fn merge_shares<T: crate::Config>(
+    left: FToken<T>,
+    right: Option<FToken<T>>
+) -> (FToken<T>, Option<FToken<T>>)
+{
+    let right = if right.is_none() {
+        return (left, right)
+    } else {
+        right.unwrap()
+    };
+
+    if left.id() != right.id() {
+        return (left, Some(right))
     }
+
+    let merged = <FToken<T>>::new(
+        *left.id(),
+        (*left.payload()).saturating_add(*right.payload())
+    );
+    (merged, None)
 }
 
 pub trait CrowdfundingT<T: crate::Config>: Sized {
@@ -129,7 +152,7 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
 
     fn id(&self) -> &InvestmentId;
 
-    fn register_share(&mut self, share: FToken<T>);
+    fn register_share(&mut self);
 
     fn not_exist(id: InvestmentId) -> Result<(), crate::Error<T>> {
         Ok(ensure!(
@@ -140,6 +163,11 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
 
     fn insert(cf: T::Crowdfunding) {
         SimpleCrowdfundingMapV2::<T>::insert(*cf.id(), cf);
+    }
+
+    fn find(id: InvestmentId) -> Result<T::Crowdfunding, crate::Error<T>> {
+        SimpleCrowdfundingMapV2::<T>::try_get(id)
+            .map_err(|_| crate::Error::NotFound)
     }
 }
 
@@ -186,6 +214,7 @@ pub struct SimpleCrowdfundingV2<Account, Moment, AssetId, AssetBalance: Clone + 
     v1: SimpleCrowdfunding<Moment, AssetId, AssetBalance, CtxId>,
     creator: Account,
     account: Account,
+    registered_shares: u16,
 }
 
 /// The object represents a sale of tokens with various parameters.
