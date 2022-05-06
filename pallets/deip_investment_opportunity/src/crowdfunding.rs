@@ -73,33 +73,24 @@ impl<T: crate::Config> CrowdfundingT<T>
         &self.account
     }
 
-    fn register_share(&mut self) -> Result<FToken<T>, SimpleCrowdfundingStatus> {
-        if all_shares_registered::<T>(self) {
-            return Err(self.v1.status)
+    fn register_share(&mut self) -> Result<FToken<T>, crate::Error<T>> {
+        if self.all_shares_registered() {
+            return Err(crate::Error::<T>::AllSharesRegistered)
         }
 
         self.registered_shares += 1;
 
-        if all_shares_registered::<T>(self) {
+        if self.all_shares_registered() {
             self.v1.status = SimpleCrowdfundingStatus::Inactive;
         }
         let idx = (self.registered_shares - 1) as usize;
         let share = &self.v1.shares[idx];
         Ok(T::Asset::new(*share.id(), *share.amount()))
     }
-}
 
-fn all_shares_registered<T: crate::Config>(
-    cf: &SimpleCrowdfundingV2<
-        T::AccountId,
-        T::Moment,
-        FTokenId<T>,
-        FTokenBalance<T>,
-        TransactionCtxId<T::TransactionCtx>
-    >
-) -> bool
-{
-    (cf.registered_shares as usize) == cf.v1.shares.len()
+    fn all_shares_registered(&self) -> bool {
+        (self.registered_shares as usize) == self.v1.shares.len()
+    }
 }
 
 pub trait CrowdfundingT<T: crate::Config>: Sized {
@@ -122,7 +113,9 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
 
     fn account(&self) -> &T::AccountId;
 
-    fn register_share(&mut self) -> Result<FToken<T>, SimpleCrowdfundingStatus>;
+    fn register_share(&mut self) -> Result<FToken<T>, crate::Error<T>>;
+
+    fn all_shares_registered(&self) -> bool;
 
     fn not_exist(id: InvestmentId) -> Result<(), crate::Error<T>> {
         Ok(ensure!(

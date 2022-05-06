@@ -213,6 +213,7 @@ pub mod pallet {
         WrongAssetId,
         CapDifferentAssets,
         TooMuchShares,
+        AllSharesRegistered,
         // Possible errors when DAO tries to invest to an opportunity
         InvestingNotFound,
         InvestingNotActive,
@@ -226,7 +227,7 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// Event emitted when a simple crowd funding has been created.
-        SimpleCrowdfundingCreated(InvestmentId),
+        Created(InvestmentId),
         /// Event emitted when a simple crowd funding has been activated.
         SimpleCrowdfundingActivated(InvestmentId),
         /// Event emitted when a simple crowd funding has finished.
@@ -236,6 +237,8 @@ pub mod pallet {
         /// Event emitted when DAO invested to an opportunity
         Invested(InvestmentId, T::AccountId),
         HardCapReached(InvestmentId, T::AccountId),
+        ShareRegistered(InvestmentId),
+        AllSharesRegistered(InvestmentId),
     }
 
     #[doc(hidden)]

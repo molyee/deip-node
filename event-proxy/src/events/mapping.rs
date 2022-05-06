@@ -269,7 +269,7 @@ where
     use pallet_deip_investment_opportunity::Event::*;
 
     match e {
-        SimpleCrowdfundingCreated(..) => {
+        Created(..) => {
             // deip::SimpleCrowdfundingCreatedEvent
             unimplemented!()
         },

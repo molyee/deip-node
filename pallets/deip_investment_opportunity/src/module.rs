@@ -154,18 +154,22 @@ trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
         );
         T::Crowdfunding::insert(crowdfunding);
 
-        Pallet::<T>::deposit_event(Event::<T>::SimpleCrowdfundingCreated(external_id));
+        Pallet::<T>::deposit_event(Event::<T>::Created(external_id));
 
         Ok(())
     }
 
     fn _register_share(id: InvestmentId) -> DispatchResult {
         let mut cf = T::Crowdfunding::find(id)?;
-        let share = cf.register_share().map_err(|_| Error::<T>::TooMuchShares)?;
+        let share = cf.register_share()?;
         share.transfer(
             cf.creator().clone(),
             cf.account().clone(),
         );
+        Pallet::<T>::deposit_event(Event::<T>::ShareRegistered(id));
+        if cf.all_shares_registered() {
+            Pallet::<T>::deposit_event(Event::<T>::AllSharesRegistered(id));
+        }
         T::Crowdfunding::insert(cf);
         Ok(())
     }
@@ -180,7 +184,6 @@ trait Module<T: Config>:
     CrowdfundingAccount<T> +
     CrowdfundingCreate<T>
 {
-
     fn _share(
         from: &SimpleCrowdfundingOf<T>,
         to: &Investment<T>,
