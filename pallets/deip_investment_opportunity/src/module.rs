@@ -51,7 +51,7 @@ use frame_support::traits::{Currency, ReservableCurrency, WithdrawReasons, Exist
 
 impl<T: Config> CrowdfundingAccount<T> for T {}
 
-trait CrowdfundingAccount<T: Config> {
+pub(crate) trait CrowdfundingAccount<T: Config> {
 
     fn _create_account(
         cf_owner: &T::AccountId,
@@ -94,7 +94,7 @@ trait CrowdfundingAccount<T: Config> {
 
 impl<T: Config + CrowdfundingAccount<T>> CrowdfundingCreate<T> for T {}
 
-trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
+pub(crate) trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
     fn _create_crowdfunding(
         creator: T::AccountId,
         external_id: InvestmentId,
@@ -163,8 +163,9 @@ trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
         Ok(())
     }
 
-    fn _register_share(id: InvestmentId) -> DispatchResult {
+    fn _register_share(creator: T::AccountId, id: InvestmentId) -> DispatchResult {
         let mut cf = T::Crowdfunding::find(id)?;
+        cf.is_creator(&creator)?;
         let share = cf.register_share()?;
         share.transfer(
             cf.creator().clone(),
@@ -179,12 +180,12 @@ trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
     }
 }
 
-impl<T: Config> Module<T> for T
+impl<T: Config> ModuleT<T> for T
     where T: CrowdfundingAccount<T>,
           T: CrowdfundingCreate<T>
 {}
 
-trait Module<T: Config>:
+pub(crate) trait ModuleT<T: Config>:
     CrowdfundingAccount<T> +
     CrowdfundingCreate<T>
 {

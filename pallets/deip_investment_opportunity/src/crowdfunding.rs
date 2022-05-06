@@ -91,6 +91,10 @@ impl<T: crate::Config> CrowdfundingT<T>
     fn all_shares_registered(&self) -> bool {
         (self.registered_shares as usize) == self.v1.shares.len()
     }
+
+    fn is_creator(&self, x: &T::AccountId) -> Result<(), crate::Error<T>> {
+        Ok(ensure!(&self.creator == x, crate::Error::NoPermission))
+    }
 }
 
 pub trait CrowdfundingT<T: crate::Config>: Sized {
@@ -116,6 +120,8 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
     fn register_share(&mut self) -> Result<FToken<T>, crate::Error<T>>;
 
     fn all_shares_registered(&self) -> bool;
+
+    fn is_creator(&self, x: &T::AccountId) -> Result<(), crate::Error<T>>;
 
     fn not_exist(id: InvestmentId) -> Result<(), crate::Error<T>> {
         Ok(ensure!(

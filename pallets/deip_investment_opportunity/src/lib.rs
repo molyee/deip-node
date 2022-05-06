@@ -256,6 +256,8 @@ pub mod pallet {
         fn build(&self) {}
     }
 
+    use crate::module::{ModuleT, CrowdfundingCreate};
+
     #[pallet::call]
     impl<T: Config> Pallet<T>
     {
@@ -281,6 +283,15 @@ pub mod pallet {
         {
             let account = ensure_signed(origin)?;
             Self::create_investment_opportunity_impl(external_id, account, shares, funding_model)
+        }
+
+        #[pallet::weight(T::DeipInvestmentWeightInfo::activate_crowdfunding())]
+        pub fn register_share(
+            origin: OriginFor<T>,
+            id: InvestmentId
+        ) -> DispatchResult
+        {
+            T::_register_share(ensure_signed(origin)?, id)
         }
 
         #[pallet::weight(T::DeipInvestmentWeightInfo::activate_crowdfunding())]
