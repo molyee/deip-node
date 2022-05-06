@@ -181,14 +181,37 @@ pub(crate) trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
     }
 }
 
+impl<T: Config> RefundT<T> for T {}
+
+pub(crate) trait RefundT<T: Config>
+{
+    fn refund(investor: T::AccountId, id: InvestmentId) -> DispatchResult
+    {
+        let cf = T::Crowdfunding::find(id)?;
+
+        let inv = T::Crowdfunding::find_investment(&cf, investor.clone())?;
+
+        cf.fund(inv.amount).transfer(
+            cf.account().clone(),
+            investor.clone(),
+        );
+
+        frame_system::Pallet::<T>::dec_consumers(&investor);
+
+        Ok(())
+    }
+}
+
 impl<T: Config> ModuleT<T> for T
     where T: CrowdfundingAccount<T>,
-          T: CrowdfundingCreate<T>
+          T: CrowdfundingCreate<T>,
+          T: RefundT<T>
 {}
 
 pub(crate) trait ModuleT<T: Config>:
     CrowdfundingAccount<T> +
-    CrowdfundingCreate<T>
+    CrowdfundingCreate<T> +
+    RefundT<T>
 {
     fn _share(
         from: &SimpleCrowdfundingOf<T>,

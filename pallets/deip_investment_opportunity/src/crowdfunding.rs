@@ -10,8 +10,8 @@ use deip_serializable_u128::SerializableAtLeast32BitUnsigned;
 use deip_asset_system::asset::{Asset, FTokenT, GenericAssetT};
 use deip_transaction_ctx::{TransactionCtxId, TransactionCtxT};
 
-use crate::module::{FToken, FTokenId, FTokenBalance};
-use crate::{SimpleCrowdfundingMapV2};
+use crate::module::{FToken, FTokenId, FTokenBalance, Investment};
+use crate::{SimpleCrowdfundingMapV2, InvestmentMapV2};
 
 impl<T: crate::Config> CrowdfundingT<T>
     for SimpleCrowdfundingV2<
@@ -159,7 +159,7 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
     fn not_exist(id: InvestmentId) -> Result<(), crate::Error<T>> {
         Ok(ensure!(
             !SimpleCrowdfundingMapV2::<T>::contains_key(id),
-            crate::Error::<T>::AlreadyExists
+            crate::Error::AlreadyExists
         ))
     }
 
@@ -169,6 +169,15 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
 
     fn find(id: InvestmentId) -> Result<T::Crowdfunding, crate::Error<T>> {
         SimpleCrowdfundingMapV2::<T>::try_get(id)
+            .map_err(|_| crate::Error::NotFound)
+    }
+
+    fn find_investment(
+        cf: &T::Crowdfunding,
+        investor: T::AccountId
+    ) -> Result<Investment<T>, crate::Error<T>>
+    {
+        InvestmentMapV2::<T>::try_get(*cf.id(), investor)
             .map_err(|_| crate::Error::NotFound)
     }
 }

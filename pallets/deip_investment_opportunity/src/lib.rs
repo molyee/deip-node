@@ -256,7 +256,7 @@ pub mod pallet {
         fn build(&self) {}
     }
 
-    use crate::module::{ModuleT, CrowdfundingCreate};
+    use crate::module::{ModuleT, CrowdfundingCreate, RefundT};
 
     #[pallet::call]
     impl<T: Config> Pallet<T>
@@ -315,6 +315,18 @@ pub mod pallet {
         {
             ensure_none(origin)?;
             Self::expire_crowdfunding_impl(sale_id)
+        }
+
+        #[pallet::weight(
+            T::DeipInvestmentWeightInfo::expire_crowdfunding_already_expired()
+                .max(T::DeipInvestmentWeightInfo::expire_crowdfunding())
+        )]
+        pub fn refund(
+            origin: OriginFor<T>,
+            id: InvestmentId
+        ) -> DispatchResult
+        {
+            T::refund(ensure_signed(origin)?, id)
         }
 
         #[pallet::weight(T::DeipInvestmentWeightInfo::finish_crowdfunding())]
@@ -383,6 +395,15 @@ pub mod pallet {
         Blake2_128Concat,
         InvestmentId,
         Vec<(T::AccountId, Investment<T>)>
+    >;
+
+    #[pallet::storage]
+    pub type InvestmentMapV2<T: Config> = StorageDoubleMap<_,
+        Blake2_128Concat,
+        InvestmentId,
+        Blake2_128Concat,
+        T::AccountId,
+        Investment<T>
     >;
 
     #[pallet::storage]
