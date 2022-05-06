@@ -43,6 +43,10 @@ pub type Investment<T: Config> = Contribution<
     T::Moment
 >;
 
+fn deposit_event<T: Config>(event: Event<T>) {
+    Pallet::<T>::deposit_event(event);
+}
+
 use frame_support::traits::{Currency, ReservableCurrency, WithdrawReasons, ExistenceRequirement};
 
 impl<T: Config> CrowdfundingAccount<T> for T {}
@@ -140,7 +144,7 @@ trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
 
         use crate::crowdfunding::CrowdfundingT;
 
-        let crowdfunding = T::Crowdfunding::new(
+        let cf = T::Crowdfunding::new(
             T::TransactionCtx::current(),
             creator,
             investment_account,
@@ -152,9 +156,9 @@ trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
             hard_cap,
             shares
         );
-        T::Crowdfunding::insert(crowdfunding);
+        T::Crowdfunding::insert(cf.clone());
 
-        Pallet::<T>::deposit_event(Event::<T>::Created(external_id));
+        deposit_event::<T>(Event::<T>::Created(cf));
 
         Ok(())
     }
@@ -166,9 +170,9 @@ trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
             cf.creator().clone(),
             cf.account().clone(),
         );
-        Pallet::<T>::deposit_event(Event::<T>::ShareRegistered(id));
+        deposit_event::<T>(Event::<T>::ShareRegistered(id));
         if cf.all_shares_registered() {
-            Pallet::<T>::deposit_event(Event::<T>::AllSharesRegistered(id));
+            deposit_event::<T>(Event::<T>::AllSharesRegistered(id));
         }
         T::Crowdfunding::insert(cf);
         Ok(())

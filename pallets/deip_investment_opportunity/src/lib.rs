@@ -227,7 +227,7 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// Event emitted when a simple crowd funding has been created.
-        Created(InvestmentId),
+        Created(T::Crowdfunding),
         /// Event emitted when a simple crowd funding has been activated.
         SimpleCrowdfundingActivated(InvestmentId),
         /// Event emitted when a simple crowd funding has finished.
