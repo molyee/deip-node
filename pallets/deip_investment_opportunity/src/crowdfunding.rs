@@ -73,8 +73,8 @@ impl<T: crate::Config> CrowdfundingT<T>
         &self.account
     }
 
-    fn asset_id(&self) -> &FTokenId<T> {
-        &self.v1.asset_id
+    fn fund(&self, amount: FTokenBalance<T>) -> FToken<T> {
+        T::Asset::new(self.v1.asset_id, amount)
     }
 
     fn shares(&self) -> Vec<FToken<T>> {
@@ -128,7 +128,7 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
         external_id: InvestmentId,
         start_time: T::Moment,
         end_time: T::Moment,
-        asset_id: FTokenId<T>,
+        fund: FTokenId<T>,
         soft_cap: FTokenBalance<T>,
         hard_cap: FTokenBalance<T>,
         shares: Vec<FToken<T>>,
@@ -140,7 +140,7 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
 
     fn account(&self) -> &T::AccountId;
 
-    fn asset_id(&self) -> &FTokenId<T>;
+    fn fund(&self, amount: FTokenBalance<T>) -> FToken<T>;
 
     fn shares(&self) -> Vec<FToken<T>>;
 

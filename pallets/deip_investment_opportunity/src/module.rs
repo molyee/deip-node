@@ -221,7 +221,7 @@ pub(crate) trait ModuleT<T: Config>:
         amount: FTokenBalance<T>
     )
     {
-        T::Asset::new(*cf.asset_id(), amount).transfer(
+        cf.fund(amount).transfer(
             cf.account().clone(),
             investor.clone(),
         );
