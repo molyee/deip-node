@@ -173,6 +173,7 @@ pub(crate) trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
         );
         deposit_event::<T>(Event::<T>::ShareRegistered(id));
         if cf.all_shares_registered() {
+            cf.set_status(SimpleCrowdfundingStatus::Inactive);
             deposit_event::<T>(Event::<T>::AllSharesRegistered(id));
         }
         T::Crowdfunding::insert(cf);
@@ -216,45 +217,40 @@ pub(crate) trait ModuleT<T: Config>:
 
     // #[transactional]
     fn _abort(
-        sale: &SimpleCrowdfundingOf<T>,
-        sale_owner: &T::AccountId,
-        // shares: &[(DeipAssetId<T>, DeipAssetBalance<T>)],
+        cf: &T::Crowdfunding,
     ) -> Result<(), UnreserveError<FTokenId<T>>>
     {
-        let sale_account = investment_account::<T>(sale.external_id.as_bytes());
-
-        if let Ok(ref c) = InvestmentMapV1::<T>::try_get(sale.external_id) {
+        if let Ok(ref c) = InvestmentMapV1::<T>::try_get(*cf.id()) {
             for (_, ref investment) in c {
 
-                T::Asset::new(sale.asset_id, investment.amount).transfer(
-                    sale_account.clone(),
+                T::Asset::new(*cf.asset_id(), investment.amount).transfer(
+                    cf.account().clone(),
                     investment.owner.clone(),
                 );
 
                 frame_system::Pallet::<T>::dec_consumers(&investment.owner);
             }
-            InvestmentMapV1::<T>::remove(sale.external_id);
+            InvestmentMapV1::<T>::remove(*cf.id());
         }
 
         //////////////////
 
-        for asset_id in sale.shares.iter().map(|x| x.id()) {
+        for share in cf.shares() {
 
-            let total = T::Asset::balance(*asset_id, &sale_account);
+            let total
+                = T::Asset::balance(*share.id(), cf.account());
+
             if total.payload().is_zero() {
                 continue
             }
 
             total.transfer(
-                sale_account.clone(),
-                sale_owner.clone(),
+                cf.account().clone(),
+                cf.creator().clone(),
             );
-            // if result.is_err() {
-            //     return Err(UnreserveError::AssetTransferFailed(*asset_id))
-            // }
         }
 
-        Self::_destroy_account(sale_owner, &sale.external_id);
+        Self::_destroy_account(cf.creator(), cf.id());
 
         Ok(())
     }
@@ -351,32 +347,26 @@ impl<T: Config> Pallet<T> {
         })
     }
 
-    pub(super) fn expire_crowdfunding_impl(sale_id: InvestmentId) -> DispatchResultWithPostInfo
+    pub(super) fn expire_crowdfunding_impl(id: InvestmentId) -> DispatchResultWithPostInfo
     {
-        let mut sale
-            = SimpleCrowdfundingMapV1::<T>::get(sale_id)
-            .ok_or(Error::<T>::NotFound)?;
+        let mut cf = T::Crowdfunding::find(id)?;
 
-        match sale.status {
+        match cf.status() {
             SimpleCrowdfundingStatus::Expired => {
                 let weight = T::DeipInvestmentWeightInfo::expire_crowdfunding_already_expired();
                 return Ok(Some(weight).into())
             },
-            SimpleCrowdfundingStatus::Active => ensure!(
-                pallet_timestamp::Pallet::<T>::get() >= sale.end_time,
-                Error::<T>::ExpirationWrongState
-            ),
+            SimpleCrowdfundingStatus::Active => {
+                cf.expired(pallet_timestamp::Pallet::<T>::get())?;
+            },
             _ => return Err(Error::<T>::ShouldBeActive)?,
         };
 
-        sale.status = SimpleCrowdfundingStatus::Expired;
-        T::_abort(
-            &sale,
-            // sale_owner,
-            &Default::default()
-        ).unwrap_or_else(|_| panic!("assets should be reserved earlier"));
-        Self::deposit_event(Event::SimpleCrowdfundingExpired(sale.external_id));
-        SimpleCrowdfundingMapV1::<T>::insert(sale_id, sale);
+        cf.set_status(SimpleCrowdfundingStatus::Expired);
+        T::_abort(&cf)
+            .unwrap_or_else(|_| panic!("assets should be reserved earlier"));
+        deposit_event::<T>(Event::SimpleCrowdfundingExpired(id));
+        T::Crowdfunding::insert(cf);
 
         Ok(None.into())
     }

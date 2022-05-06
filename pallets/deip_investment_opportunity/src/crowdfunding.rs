@@ -73,19 +73,35 @@ impl<T: crate::Config> CrowdfundingT<T>
         &self.account
     }
 
-    fn register_share(&mut self) -> Result<FToken<T>, crate::Error<T>> {
+    fn asset_id(&self) -> &FTokenId<T> {
+        &self.v1.asset_id
+    }
+
+    fn shares(&self) -> Vec<FToken<T>> {
+        self.v1.shares.iter()
+            .map(|x| <FToken<T>>::new(*x.id(), *x.amount()))
+            .collect()
+    }
+
+    fn status(&self) -> SimpleCrowdfundingStatus {
+        self.v1.status
+    }
+
+    fn register_share(&mut self) -> Result<FToken<T>, crate::Error<T>>
+    {
         if self.all_shares_registered() {
             return Err(crate::Error::<T>::AllSharesRegistered)
         }
 
         self.registered_shares += 1;
 
-        if self.all_shares_registered() {
-            self.v1.status = SimpleCrowdfundingStatus::Inactive;
-        }
-        let idx = (self.registered_shares - 1) as usize;
-        let share = &self.v1.shares[idx];
+        let share = &self.v1.shares[(self.registered_shares - 1) as usize];
+
         Ok(T::Asset::new(*share.id(), *share.amount()))
+    }
+
+    fn set_status(&mut self, status: SimpleCrowdfundingStatus) {
+        self.v1.status = status;
     }
 
     fn all_shares_registered(&self) -> bool {
@@ -94,6 +110,13 @@ impl<T: crate::Config> CrowdfundingT<T>
 
     fn is_creator(&self, x: &T::AccountId) -> Result<(), crate::Error<T>> {
         Ok(ensure!(&self.creator == x, crate::Error::NoPermission))
+    }
+
+    fn expired(&self, now: T::Moment) -> Result<(), crate::Error<T>> {
+        Ok(ensure!(
+            self.v1.end_time <= now,
+            crate::Error::<T>::ExpirationWrongState
+        ))
     }
 }
 
@@ -117,11 +140,21 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
 
     fn account(&self) -> &T::AccountId;
 
+    fn asset_id(&self) -> &FTokenId<T>;
+
+    fn shares(&self) -> Vec<FToken<T>>;
+
+    fn status(&self) -> SimpleCrowdfundingStatus;
+
     fn register_share(&mut self) -> Result<FToken<T>, crate::Error<T>>;
+
+    fn set_status(&mut self, status: SimpleCrowdfundingStatus);
 
     fn all_shares_registered(&self) -> bool;
 
     fn is_creator(&self, x: &T::AccountId) -> Result<(), crate::Error<T>>;
+
+    fn expired(&self, now: T::Moment) -> Result<(), crate::Error<T>>;
 
     fn not_exist(id: InvestmentId) -> Result<(), crate::Error<T>> {
         Ok(ensure!(
