@@ -363,9 +363,12 @@ impl<T: Config> Pallet<T> {
         };
 
         cf.set_status(SimpleCrowdfundingStatus::Expired);
+
         T::_abort(&cf)
             .unwrap_or_else(|_| panic!("assets should be reserved earlier"));
+
         deposit_event::<T>(Event::SimpleCrowdfundingExpired(id));
+
         T::Crowdfunding::insert(cf);
 
         Ok(None.into())
