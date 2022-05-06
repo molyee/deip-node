@@ -61,7 +61,7 @@ pub mod pallet {
     };
 
     use sp_core::H256;
-    use crate::module::{InvestmentId, FundingModelOf, FToken, FTokenBalance, FTokenId};
+    use crate::module::{CrowdfundingId, FundingModelOf, FToken, FTokenBalance, FTokenId};
 
     use crate::weights::WeightInfo;
     use deip_asset_system::{DeipAssetSystem, asset::{GenericAssetT, TransferUnitT, FTokenT}};
@@ -72,7 +72,7 @@ pub mod pallet {
     pub trait Config:
         frame_system::Config +
         pallet_timestamp::Config +
-        DeipAssetSystem<Self::AccountId, Self::SourceId, InvestmentId> +
+        DeipAssetSystem<Self::AccountId, Self::SourceId, CrowdfundingId> +
         SendTransactionTypes<Call<Self>>
     {
         type DeipInvestmentWeightInfo: WeightInfo;
@@ -229,16 +229,16 @@ pub mod pallet {
         /// Event emitted when a simple crowd funding has been created.
         Created(T::Crowdfunding),
         /// Event emitted when a simple crowd funding has been activated.
-        SimpleCrowdfundingActivated(InvestmentId),
+        SimpleCrowdfundingActivated(CrowdfundingId),
         /// Event emitted when a simple crowd funding has finished.
-        SimpleCrowdfundingFinished(InvestmentId),
+        SimpleCrowdfundingFinished(CrowdfundingId),
         /// Event emitted when a simple crowd funding has expired.
-        SimpleCrowdfundingExpired(InvestmentId),
+        SimpleCrowdfundingExpired(CrowdfundingId),
         /// Event emitted when DAO invested to an opportunity
-        Invested(InvestmentId, T::AccountId),
-        HardCapReached(InvestmentId, T::AccountId),
-        ShareRegistered(InvestmentId),
-        AllSharesRegistered(InvestmentId),
+        Invested(CrowdfundingId, T::AccountId),
+        HardCapReached(CrowdfundingId, T::AccountId),
+        ShareRegistered(CrowdfundingId),
+        AllSharesRegistered(CrowdfundingId),
     }
 
     #[doc(hidden)]
@@ -275,7 +275,7 @@ pub mod pallet {
         })]
         pub fn create_investment_opportunity(
             origin: OriginFor<T>,
-            external_id: InvestmentId,
+            external_id: CrowdfundingId,
             creator: T::DeipAccountId,
             shares: Vec<FToken<T>>,
             funding_model: FundingModelOf<T>,
@@ -288,7 +288,7 @@ pub mod pallet {
         #[pallet::weight(T::DeipInvestmentWeightInfo::activate_crowdfunding())]
         pub fn register_share(
             origin: OriginFor<T>,
-            id: InvestmentId
+            id: CrowdfundingId
         ) -> DispatchResult
         {
             T::_register_share(ensure_signed(origin)?, id)
@@ -297,7 +297,7 @@ pub mod pallet {
         #[pallet::weight(T::DeipInvestmentWeightInfo::activate_crowdfunding())]
         pub fn activate_crowdfunding(
             origin: OriginFor<T>,
-            sale_id: InvestmentId
+            sale_id: CrowdfundingId
         ) -> DispatchResult
         {
             ensure_none(origin)?;
@@ -310,7 +310,7 @@ pub mod pallet {
         )]
         pub fn expire_crowdfunding(
             origin: OriginFor<T>,
-            sale_id: InvestmentId
+            sale_id: CrowdfundingId
         ) -> DispatchResultWithPostInfo
         {
             ensure_none(origin)?;
@@ -323,7 +323,7 @@ pub mod pallet {
         )]
         pub fn refund(
             origin: OriginFor<T>,
-            id: InvestmentId
+            id: CrowdfundingId
         ) -> DispatchResult
         {
             T::refund(ensure_signed(origin)?, id)
@@ -332,7 +332,7 @@ pub mod pallet {
         #[pallet::weight(T::DeipInvestmentWeightInfo::finish_crowdfunding())]
         pub fn finish_crowdfunding(
             origin: OriginFor<T>,
-            sale_id: InvestmentId
+            sale_id: CrowdfundingId
         ) -> DispatchResult
         {
             ensure_none(origin)?;
@@ -342,7 +342,7 @@ pub mod pallet {
         #[pallet::weight(10_000)]
         pub fn accept_contribution(
             origin: OriginFor<T>,
-            sale_id: InvestmentId,
+            sale_id: CrowdfundingId,
             share: FToken<T>,
             contributor: T::AccountId
         ) -> DispatchResult
@@ -378,7 +378,7 @@ pub mod pallet {
         )]
         pub fn invest(
             origin: OriginFor<T>,
-            id: InvestmentId,
+            id: CrowdfundingId,
             asset: FToken<T>
         ) -> DispatchResultWithPostInfo {
             let account = ensure_signed(origin)?;
@@ -393,14 +393,14 @@ pub mod pallet {
     #[pallet::storage]
     pub type InvestmentMapV1<T: Config> = StorageMap<_,
         Blake2_128Concat,
-        InvestmentId,
+        CrowdfundingId,
         Vec<(T::AccountId, Investment<T>)>
     >;
 
     #[pallet::storage]
     pub type InvestmentMapV2<T: Config> = StorageDoubleMap<_,
         Blake2_128Concat,
-        InvestmentId,
+        CrowdfundingId,
         Blake2_128Concat,
         T::AccountId,
         Investment<T>
@@ -409,13 +409,13 @@ pub mod pallet {
     #[pallet::storage]
     pub type SimpleCrowdfundingMapV1<T: Config> = StorageMap<_,
         Blake2_128Concat,
-        InvestmentId,
+        CrowdfundingId,
         SimpleCrowdfundingOf<T>,
     >;
     #[pallet::storage]
     pub type SimpleCrowdfundingMapV2<T: Config> = StorageMap<_,
         Blake2_128Concat,
-        InvestmentId,
+        CrowdfundingId,
         T::Crowdfunding
     >;
 }

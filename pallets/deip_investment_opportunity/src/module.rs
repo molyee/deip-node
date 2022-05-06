@@ -55,7 +55,7 @@ pub(crate) trait CrowdfundingAccount<T: Config> {
 
     fn _create_account(
         cf_owner: &T::AccountId,
-        cf_id: &InvestmentId,
+        cf_id: &CrowdfundingId,
     ) -> Result<T::AccountId, DispatchError>
     {
         let reserved = T::Currency::withdraw(
@@ -75,7 +75,7 @@ pub(crate) trait CrowdfundingAccount<T: Config> {
 
     fn _destroy_account(
         cf_owner: &T::AccountId,
-        cf_id: &InvestmentId
+        cf_id: &CrowdfundingId
     )
     {
         let deposited =
@@ -97,7 +97,7 @@ impl<T: Config + CrowdfundingAccount<T>> CrowdfundingCreate<T> for T {}
 pub(crate) trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
     fn _create_crowdfunding(
         creator: T::AccountId,
-        external_id: InvestmentId,
+        external_id: CrowdfundingId,
         start_time: T::Moment,
         end_time: T::Moment,
         asset_id: FTokenId<T>,
@@ -163,7 +163,7 @@ pub(crate) trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
         Ok(())
     }
 
-    fn _register_share(creator: T::AccountId, id: InvestmentId) -> DispatchResult
+    fn _register_share(creator: T::AccountId, id: CrowdfundingId) -> DispatchResult
     {
         let mut cf = T::Crowdfunding::find(id)?;
         cf.is_creator(&creator)?;
@@ -185,7 +185,7 @@ impl<T: Config> RefundT<T> for T {}
 
 pub(crate) trait RefundT<T: Config>
 {
-    fn refund(investor: T::AccountId, id: InvestmentId) -> DispatchResult
+    fn refund(investor: T::AccountId, id: CrowdfundingId) -> DispatchResult
     {
         let cf = T::Crowdfunding::find(id)?;
 
@@ -307,7 +307,7 @@ pub struct Reserve {}
 
 impl<T: Config> Pallet<T> {
     pub(super) fn create_investment_opportunity_impl(
-        external_id: InvestmentId,
+        external_id: CrowdfundingId,
         creator: T::AccountId,
         shares: Vec<FToken<T>>,
         funding_model: FundingModelOf<T>,
@@ -334,7 +334,7 @@ impl<T: Config> Pallet<T> {
         }
     }
 
-    pub(super) fn activate_crowdfunding_impl(sale_id: InvestmentId) -> DispatchResult {
+    pub(super) fn activate_crowdfunding_impl(sale_id: CrowdfundingId) -> DispatchResult {
         SimpleCrowdfundingMapV1::<T>::mutate_exists(sale_id, |maybe_sale| -> DispatchResult {
             let sale = match maybe_sale.as_mut() {
                 None => return Err(Error::<T>::NotFound.into()),
@@ -357,7 +357,7 @@ impl<T: Config> Pallet<T> {
         })
     }
 
-    pub(super) fn expire_crowdfunding_impl(id: InvestmentId) -> DispatchResultWithPostInfo
+    pub(super) fn expire_crowdfunding_impl(id: CrowdfundingId) -> DispatchResultWithPostInfo
     {
         let mut cf = T::Crowdfunding::find(id)?;
 
@@ -384,7 +384,7 @@ impl<T: Config> Pallet<T> {
         Ok(None.into())
     }
 
-    pub(super) fn finish_crowdfunding_impl(sale_id: InvestmentId) -> DispatchResult
+    pub(super) fn finish_crowdfunding_impl(sale_id: CrowdfundingId) -> DispatchResult
     {
         let mut sale
             = SimpleCrowdfundingMapV1::<T>::get(sale_id)
@@ -464,7 +464,7 @@ impl<T: Config> Pallet<T> {
 
     pub(super) fn invest_to_crowdfunding_impl(
         account: T::AccountId,
-        sale_id: InvestmentId,
+        sale_id: CrowdfundingId,
         asset: FToken<T>,
     ) -> DispatchResultWithPostInfo {
         let sale = SimpleCrowdfundingMapV1::<T>::try_get(sale_id)

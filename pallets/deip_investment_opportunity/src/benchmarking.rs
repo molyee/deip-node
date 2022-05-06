@@ -247,7 +247,7 @@ fn _mint<T: Config + AssetsConfig + DeipAssetsConfig + BalancesConfig>(
 }
 
 fn init_investment_opportunity<T: Config>(idx: u8) -> Investment<T> {
-    let sale_id: InvestmentId = InvestmentId::from([idx; 20]);
+    let sale_id: CrowdfundingId = CrowdfundingId::from([idx; 20]);
     let owner: T::AccountId = whitelisted_caller();
     let amount = FTokenBalance::<T>::from(200u16);
     let time = T::Moment::from(1u16).mul(T::BlockNumber::from(10u16));
@@ -307,8 +307,8 @@ fn init_simple_crowdfunding<T: Config + BalancesConfig + DeipAssetsConfig>(
     let created_ctx: TransactionCtxId<<T as Config>::TransactionCtx> =
         Default::default();
 
-    let external_id: InvestmentId =
-        InvestmentId::from([idx; 20]);
+    let external_id: CrowdfundingId =
+        CrowdfundingId::from([idx; 20]);
 
     let start_time: T::Moment
         = now::<T>();

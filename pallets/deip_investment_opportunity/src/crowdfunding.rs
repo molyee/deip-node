@@ -33,7 +33,7 @@ impl<T: crate::Config> CrowdfundingT<T>
         ctx: T::TransactionCtx,
         creator: T::AccountId,
         account: T::AccountId,
-        external_id: InvestmentId,
+        external_id: CrowdfundingId,
         start_time: T::Moment,
         end_time: T::Moment,
         asset_id: FTokenId<T>,
@@ -61,7 +61,7 @@ impl<T: crate::Config> CrowdfundingT<T>
         }
     }
 
-    fn id(&self) -> &InvestmentId {
+    fn id(&self) -> &CrowdfundingId {
         self.v1.id()
     }
 
@@ -125,7 +125,7 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
         ctx: T::TransactionCtx,
         creator: T::AccountId,
         account: T::AccountId,
-        external_id: InvestmentId,
+        external_id: CrowdfundingId,
         start_time: T::Moment,
         end_time: T::Moment,
         fund: FTokenId<T>,
@@ -134,7 +134,7 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
         shares: Vec<FToken<T>>,
     ) -> Self;
 
-    fn id(&self) -> &InvestmentId;
+    fn id(&self) -> &CrowdfundingId;
 
     fn creator(&self) -> &T::AccountId;
 
@@ -156,7 +156,7 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
 
     fn expired(&self, now: T::Moment) -> Result<(), crate::Error<T>>;
 
-    fn not_exist(id: InvestmentId) -> Result<(), crate::Error<T>> {
+    fn not_exist(id: CrowdfundingId) -> Result<(), crate::Error<T>> {
         Ok(ensure!(
             !SimpleCrowdfundingMapV2::<T>::contains_key(id),
             crate::Error::AlreadyExists
@@ -167,7 +167,7 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
         SimpleCrowdfundingMapV2::<T>::insert(*cf.id(), cf);
     }
 
-    fn find(id: InvestmentId) -> Result<T::Crowdfunding, crate::Error<T>> {
+    fn find(id: CrowdfundingId) -> Result<T::Crowdfunding, crate::Error<T>> {
         SimpleCrowdfundingMapV2::<T>::try_get(id)
             .map_err(|_| crate::Error::NotFound)
     }
@@ -191,7 +191,7 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
 }
 
 /// Unique InvestmentOpportunity ID reference
-pub type InvestmentId = sp_core::H160;
+pub type CrowdfundingId = sp_core::H160;
 
 #[derive(Encode, Decode, Clone, Copy, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -245,7 +245,7 @@ pub struct SimpleCrowdfunding<Moment, AssetId, AssetBalance: Clone + AtLeast32Bi
     // #[cfg_attr(feature = "std", serde(skip))]
     pub created_ctx: CtxId,
     /// Reference for external world and uniques control
-    pub external_id: InvestmentId,
+    pub external_id: CrowdfundingId,
     /// When the sale starts
     pub start_time: Moment,
     /// When it supposed to end
@@ -264,7 +264,7 @@ pub struct SimpleCrowdfunding<Moment, AssetId, AssetBalance: Clone + AtLeast32Bi
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub struct Contribution<AccountId, Balance, Moment> {
-    pub sale_id: InvestmentId,
+    pub sale_id: CrowdfundingId,
     pub owner: AccountId,
     pub amount: Balance,
     pub time: Moment,
