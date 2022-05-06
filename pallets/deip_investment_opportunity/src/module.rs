@@ -215,6 +215,20 @@ pub(crate) trait ModuleT<T: Config>:
         Ok(())
     }
 
+    fn _refund(
+        investor: &T::AccountId,
+        cf: &T::Crowdfunding,
+        amount: FTokenBalance<T>
+    )
+    {
+        T::Asset::new(*cf.asset_id(), amount).transfer(
+            cf.account().clone(),
+            investor.clone(),
+        );
+
+        frame_system::Pallet::<T>::dec_consumers(investor);
+    }
+
     // #[transactional]
     fn _abort(
         cf: &T::Crowdfunding,
@@ -223,12 +237,7 @@ pub(crate) trait ModuleT<T: Config>:
         if let Ok(ref c) = InvestmentMapV1::<T>::try_get(*cf.id()) {
             for (_, ref investment) in c {
 
-                T::Asset::new(*cf.asset_id(), investment.amount).transfer(
-                    cf.account().clone(),
-                    investment.owner.clone(),
-                );
-
-                frame_system::Pallet::<T>::dec_consumers(&investment.owner);
+                Self::_refund(&investment.owner, cf, investment.amount);
             }
             InvestmentMapV1::<T>::remove(*cf.id());
         }
