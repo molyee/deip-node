@@ -163,7 +163,8 @@ pub(crate) trait CrowdfundingCreate<T: Config>: CrowdfundingAccount<T> {
         Ok(())
     }
 
-    fn _register_share(creator: T::AccountId, id: InvestmentId) -> DispatchResult {
+    fn _register_share(creator: T::AccountId, id: InvestmentId) -> DispatchResult
+    {
         let mut cf = T::Crowdfunding::find(id)?;
         cf.is_creator(&creator)?;
         cf.register_share()?.transfer(
