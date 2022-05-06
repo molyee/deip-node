@@ -198,6 +198,8 @@ pub(crate) trait RefundT<T: Config>
 
         frame_system::Pallet::<T>::dec_consumers(&investor);
 
+        T::Crowdfunding::remove_investment(&cf, investor);
+
         Ok(())
     }
 }
@@ -238,35 +240,11 @@ pub(crate) trait ModuleT<T: Config>:
         Ok(())
     }
 
-    fn _refund(
-        investor: &T::AccountId,
-        cf: &T::Crowdfunding,
-        amount: FTokenBalance<T>
-    )
-    {
-        cf.fund(amount).transfer(
-            cf.account().clone(),
-            investor.clone(),
-        );
-
-        frame_system::Pallet::<T>::dec_consumers(investor);
-    }
-
     // #[transactional]
     fn _abort(
         cf: &T::Crowdfunding,
     ) -> Result<(), UnreserveError<FTokenId<T>>>
     {
-        if let Ok(ref c) = InvestmentMapV1::<T>::try_get(*cf.id()) {
-            for (_, ref investment) in c {
-
-                Self::_refund(&investment.owner, cf, investment.amount);
-            }
-            InvestmentMapV1::<T>::remove(*cf.id());
-        }
-
-        //////////////////
-
         for share in cf.shares() {
 
             let total

@@ -180,6 +180,14 @@ pub trait CrowdfundingT<T: crate::Config>: Sized {
         InvestmentMapV2::<T>::try_get(*cf.id(), investor)
             .map_err(|_| crate::Error::NotFound)
     }
+
+    fn remove_investment(
+        cf: &T::Crowdfunding,
+        investor: T::AccountId
+    )
+    {
+        InvestmentMapV2::<T>::remove(*cf.id(), investor);
+    }
 }
 
 /// Unique InvestmentOpportunity ID reference
