@@ -87,7 +87,7 @@ pub mod pallet {
 
     pub const V0: StorageVersion = StorageVersion::new(0);
     pub const V1: StorageVersion = StorageVersion::new(1);
-    pub const V2: StorageVersion = StorageVersion::new(1);
+    pub const V2: StorageVersion = StorageVersion::new(2);
 
     #[doc(hidden)]
     #[pallet::pallet]
