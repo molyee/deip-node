@@ -87,11 +87,12 @@ pub mod pallet {
 
     pub const V0: StorageVersion = StorageVersion::new(0);
     pub const V1: StorageVersion = StorageVersion::new(1);
+    pub const V2: StorageVersion = StorageVersion::new(1);
 
     #[doc(hidden)]
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
-    #[pallet::storage_version(V1)]
+    #[pallet::storage_version(V2)]
     pub struct Pallet<T>(_);
 
     #[doc(hidden)]
