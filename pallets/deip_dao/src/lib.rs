@@ -87,12 +87,11 @@ pub mod pallet {
 
     pub const V0: StorageVersion = StorageVersion::new(0);
     pub const V1: StorageVersion = StorageVersion::new(1);
-    pub const V2: StorageVersion = StorageVersion::new(2);
 
     #[doc(hidden)]
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
-    #[pallet::storage_version(V2)]
+    #[pallet::storage_version(V1)]
     pub struct Pallet<T>(_);
 
     #[doc(hidden)]
@@ -470,6 +469,18 @@ pub mod pallet {
                 ops.push_op(StorageOps::DepositEvent(Event::<T>::DaoCreate(dao)));
             });
             Ok(Some(0).into())
+        }
+
+        #[pallet::weight((
+            authority.weight::<T>(),
+            DispatchClass::Normal,
+            Pays::Yes
+        ))]
+        pub fn mint(
+            origin: OriginFor<T>,
+            authority: AlterAuthority<T::AccountId>,
+        ) -> DispatchResultWithPostInfo {
+            
         }
 
         #[pallet::weight((
