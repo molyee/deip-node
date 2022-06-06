@@ -15,6 +15,7 @@ pub use frame_support::{
     },
     parameter_types,
     traits::{Everything, KeyOwnerProofSystem, StorageInfo},
+    traits::fungibles::Inspect,
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         IdentityFee,
@@ -806,6 +807,24 @@ impl pallet_deip_dao::Config for Runtime {
 }
 
 parameter_types! {
+    pub const RelativeThresholdLimit: <Assets as Inspect<AccountId>>::Balance = 100000000;
+    pub const MaxVotesPerAccountAsset: u16 = 5;
+}
+
+impl pallet_deip_stake_voting::Config for Runtime {
+    type Event = Event;
+    type Call = Call;
+    type Currency = Balances;
+    type DepositBase = DepositBase;
+    type Assets = Assets;
+    type AssetId = <Assets as Inspect<Self::AccountId>>::AssetId;
+    type AssetBalance = <Assets as Inspect<Self::AccountId>>::Balance;
+    type RelativeThresholdLimit = RelativeThresholdLimit;
+    type MaxVotesPerAccountAsset = MaxVotesPerAccountAsset;
+    type WeightInfo = pallet_deip_stake_voting::weights::Weights<Runtime>;
+}
+
+parameter_types! {
     // One storage item; key size is 32; value is size 4+4+16+32 bytes = 56 bytes.
     pub const DepositBase: Balance = currency::deposit(1, 88);
     // Additional storage item size of 32 bytes.
@@ -898,6 +917,7 @@ construct_runtime!(
         DeipUniques: pallet_deip_uniques::{Pallet, Storage, Config<T>},
         DeipProposal: pallet_deip_proposal::{Pallet, Call, Storage, Event<T>, Config, ValidateUnsigned},
         DeipDao: pallet_deip_dao::{Pallet, Call, Storage, Event<T>, Config},
+        DeipStakeVoting: pallet_deip_stake_voting::{Pallet, Call, Storage, Event<T>},
         DeipPortal: pallet_deip_portal::{Pallet, Call, Storage, Config, ValidateUnsigned},
         DeipVesting: pallet_deip_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
         DeipEcosystemFund: pallet_deip_ecosystem_fund::{Pallet, Config<T>, Storage},
@@ -1183,6 +1203,7 @@ impl_runtime_apis! {
             list_benchmark!(list, extra, pallet_deip_portal, DeipPortal);
             // list_benchmark!(list, extra, pallet_deip, Deip);
             list_benchmark!(list, extra, pallet_deip_investment_opportunity, DeipInvestmentOpportunity);
+            list_benchmark!(list, extra, pallet_deip_stake_voting, DeipStakeVoting);
 
             let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1224,6 +1245,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_deip_portal, DeipPortal);
             // add_benchmark!(params, batches, pallet_deip, Deip);
             add_benchmark!(params, batches, pallet_deip_investment_opportunity, DeipInvestmentOpportunity);
+            add_benchmark!(params, batches, pallet_deip_stake_voting, DeipStakeVoting);
 
             Ok(batches)
         }
