@@ -8,6 +8,7 @@ use sp_runtime::traits::{Bounded, StaticLookup};
 use crate::Pallet as StakeVoting;
 use pallet_assets::Pallet as Assets;
 use pallet_assets::Config as AssetsConfig;
+use deip_asset_system::*;
 use core::ops::Range;
 
 const SEED: u32 = 1;
@@ -52,6 +53,7 @@ fn create_asset<T: Config + AssetsConfig> (
 	let balance = BalanceOf::<T>::max_value();
 	<T as Config>::Currency::make_free_balance_be(&caller, balance);
 	let asset = Default::default();
+	create_collection(&caller, 1);
     assert!(Assets::<T>::create(
         RawOrigin::Signed(caller.clone()).into(),
         asset,
@@ -93,7 +95,7 @@ fn create_voting<T: Config>(
 ) -> (VotingId, VotingOf<T>) {
 	let call = gen_call::<T>(call_size).unwrap();
 	let call_hash = blake2_256(call.encoded());
-	let (id, voting) = StakeVoting::<T>::create_voting(
+	let (id, voting) = StakeVoting::<T>::new_voting(
 		author.clone(),
 		asset,
 		start,
@@ -108,6 +110,7 @@ fn create_voting<T: Config>(
 		end,
 		threshold,
 		call,
+		max_weight(),
 	).unwrap();
 	(id, voting)
 }
@@ -119,6 +122,10 @@ fn now<T: Config>() -> TimeOf<T> {
 fn random_range(r: Range<u32>) -> u32 {
 	// TODO
 	r.start
+}
+
+fn max_weight() -> Weight {
+	1000000u64
 }
 
 benchmarks! {
@@ -143,17 +150,20 @@ benchmarks! {
 		let call_hash = blake2_256(call.encoded());
 		let caller = holders.pop().unwrap();
 		let time = now::<T>();
-		let (id, voting) = StakeVoting::<T>::create_voting(caller.clone(), asset, time, end, threshold, call_hash);
-	}: create(RawOrigin::Signed(caller.clone()), asset, Some(time), end, threshold, call.clone())
+		let (id, voting) = StakeVoting::<T>::new_voting(caller.clone(), asset, time, end, threshold, call_hash);
+	}: create(RawOrigin::Signed(caller.clone()), asset, Some(time), end, threshold, call.clone(), max_weight())
 	verify {
 		let value: T::AssetBalance = value.into();
-		assert_eq!(T::Assets::balance(asset, &caller), value);
+		let fr = T::Asset::pick_fraction(asset, &caller).unwrap();
+		assert_eq!(*fr.amount(), value);
 		assert!(<T as Config>::Currency::reserved_balance(&caller) > 0u32.into());
 		assert_eq!(Calls::<T>::get(&voting.call_hash).map(|t| t.0), Some(call));
 		assert_eq!(Votings::<T>::get(&id), Some(voting));
 		let state = State { votes: 1, value, fullness: value };
 		assert_eq!(States::<T>::get(&id), Some(state));
-		assert_eq!(Votes::<T>::get(&(caller, asset), &id), Some(Sign::Positive));
+		let v = Votes::<T>::get(&(caller, asset), &id);
+		assert!(v.is_some());
+		assert_eq!(v.unwrap().0, Sign::Positive);
 	}
 	create_and_execute {
 		let z in 0 .. 10000;
@@ -170,8 +180,8 @@ benchmarks! {
 		let call_hash = blake2_256(call.encoded());
 		let caller = holders.pop().unwrap();
 		let time = now::<T>();
-		let (id, voting) = StakeVoting::<T>::create_voting(caller.clone(), asset, time, end, threshold, call_hash);
-	}: create(RawOrigin::Signed(caller.clone()), asset, Some(time), end, threshold, call)
+		let (id, voting) = StakeVoting::<T>::new_voting(caller.clone(), asset, time, end, threshold, call_hash);
+	}: create(RawOrigin::Signed(caller.clone()), asset, Some(time), end, threshold, call, max_weight())
 	verify {
 		assert!(Votings::<T>::get(&id).is_none());
 		assert!(States::<T>::get(&id).is_none());
@@ -191,15 +201,19 @@ benchmarks! {
 		let time = now::<T>();
 		let (id, voting) = create_voting::<T>(author.clone(), asset.into(), time, None, threshold, z);
 		let caller = holders.pop().unwrap();
-	}: vote(RawOrigin::Signed(caller.clone()), id, Sign::Positive)
+	}: vote(RawOrigin::Signed(caller.clone()), id, Sign::Positive, max_weight())
 	verify {
 		assert_eq!(Votings::<T>::get(&id), Some(voting));
 		let value = (value + value).into();
 		let state = State { votes: 2, value, fullness: value };
 		assert_eq!(States::<T>::get(&id), Some(state));
 		let asset: <T as Config>::AssetId = asset.into();
-		assert_eq!(Votes::<T>::get((author, asset), &id), Some(Sign::Positive));
-		assert_eq!(Votes::<T>::get((caller, asset), &id), Some(Sign::Positive));
+		let author_vote = Votes::<T>::get(&(author, asset), &id);
+		assert!(author_vote.is_some());
+		assert_eq!(author_vote.unwrap().0, Sign::Positive);
+		let caller_vote = Votes::<T>::get(&(caller, asset), &id);
+		assert!(caller_vote.is_some());
+		assert_eq!(caller_vote.unwrap().0, Sign::Positive);
 	}
 	vote_and_execute {
 		let z in 0 .. 10000;
@@ -215,12 +229,14 @@ benchmarks! {
 		let time = now::<T>();
 		let (id, voting) = create_voting::<T>(author.clone(), asset.into(), time, None, threshold, z);
 		let caller = holders.pop().unwrap();
-	}: vote(RawOrigin::Signed(caller.clone()), id, Sign::Positive)
+	}: vote(RawOrigin::Signed(caller.clone()), id, Sign::Positive, max_weight())
 	verify {
 		assert!(Votings::<T>::get(&id).is_none());
 		assert!(States::<T>::get(&id).is_none());
 		let asset: <T as Config>::AssetId = asset.into();
-		assert_eq!(Votes::<T>::get(&(author, asset), &id), Some(Sign::Positive));
+		let author_vote = Votes::<T>::get(&(author, asset), &id);
+		assert!(author_vote.is_some());
+		assert_eq!(author_vote.unwrap().0, Sign::Positive);
 		assert!(Votes::<T>::get(&(caller, asset), &id).is_none());
 	}
 	unvote {
@@ -236,14 +252,16 @@ benchmarks! {
 		let time = now::<T>();
 		let (id, voting) = create_voting::<T>(author.clone(), asset.into(), time, None, threshold, z);
 		let caller = holders.pop().unwrap();
-		StakeVoting::<T>::vote(RawOrigin::Signed(caller.clone()).into(), id, Sign::Positive).unwrap();
-	}: cancel(RawOrigin::Signed(caller.clone()), id)
+		StakeVoting::<T>::vote(RawOrigin::Signed(caller.clone()).into(), id, Sign::Positive, max_weight()).unwrap();
+	}: cancel(RawOrigin::Signed(caller.clone()), id, max_weight())
 	verify {
 		assert_eq!(Votings::<T>::get(&id), Some(voting));
 		let state = State { votes: 1, value: value.into(), fullness: value.into() };
 		assert_eq!(States::<T>::get(&id), Some(state));
 		let asset: <T as Config>::AssetId = asset.into();
-		assert_eq!(Votes::<T>::get(&(author, asset), &id), Some(Sign::Positive));
+		let author_vote = Votes::<T>::get(&(author, asset), &id);
+		assert!(author_vote.is_some());
+		assert_eq!(author_vote.unwrap().0, Sign::Positive);
 		assert!(Votes::<T>::get(&(caller, asset), &id).is_none());
 	}
 	unvote_and_execute {
@@ -260,17 +278,21 @@ benchmarks! {
 		let time = now::<T>();
 		let (id, voting) = create_voting::<T>(author.clone(), asset.into(), time, None, threshold, z);
 		let caller = holders.pop().unwrap();
-		StakeVoting::<T>::vote(RawOrigin::Signed(caller.clone()).into(), id, Sign::Negative).unwrap();
+		StakeVoting::<T>::vote(RawOrigin::Signed(caller.clone()).into(), id, Sign::Negative, max_weight()).unwrap();
 		let approver = holders.pop().unwrap();
-		StakeVoting::<T>::vote(RawOrigin::Signed(approver.clone()).into(), id, Sign::Positive).unwrap();
-	}: cancel(RawOrigin::Signed(caller.clone()), id)
+		StakeVoting::<T>::vote(RawOrigin::Signed(approver.clone()).into(), id, Sign::Positive, max_weight()).unwrap();
+	}: cancel(RawOrigin::Signed(caller.clone()), id, max_weight())
 	verify {
 		assert!(Votings::<T>::get(&id).is_none());
 		assert!(States::<T>::get(&id).is_none());
 		assert!(Calls::<T>::get(&voting.call_hash).is_none());
 		let asset: <T as Config>::AssetId = asset.into();
-		assert_eq!(Votes::<T>::get(&(author, asset), &id), Some(Sign::Positive));
-		assert_eq!(Votes::<T>::get(&(approver, asset), &id), Some(Sign::Positive));
+		let author_vote = Votes::<T>::get(&(author, asset), &id);
+		assert!(author_vote.is_some());
+		assert_eq!(author_vote.unwrap().0, Sign::Positive);
+		let approver_vote = Votes::<T>::get(&(approver, asset), &id);
+		assert!(approver_vote.is_some());
+		assert_eq!(approver_vote.unwrap().0, Sign::Positive);
 		assert!(Votes::<T>::get(&(caller, asset), &id).is_none());
 	}
 	unvote_and_cancel {
@@ -285,7 +307,7 @@ benchmarks! {
 		let caller = holders.pop().unwrap();
 		let time = now::<T>();
 		let (id, voting) = create_voting::<T>(caller.clone(), asset.into(), time, None, threshold, z);
-	}: cancel(RawOrigin::Signed(caller.clone()), id)
+	}: cancel(RawOrigin::Signed(caller.clone()), id, max_weight())
 	verify {
 		assert!(Votings::<T>::get(&id).is_none());
 		assert!(States::<T>::get(&id).is_none());
@@ -307,7 +329,7 @@ benchmarks! {
 		let time = now::<T>();
 		let (id, voting) = create_voting::<T>(caller.clone(), asset.into(), time, None, threshold, z);
 		let approver = holders.pop().unwrap();
-		StakeVoting::<T>::vote(RawOrigin::Signed(approver.clone()).into(), id, Sign::Positive).unwrap();
+		StakeVoting::<T>::vote(RawOrigin::Signed(approver.clone()).into(), id, Sign::Positive, max_weight()).unwrap();
 		// should be executed (or cancelled)
 	}: retain_asset(RawOrigin::Signed(caller.clone()), asset.into())
 	verify {

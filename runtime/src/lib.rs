@@ -816,9 +816,10 @@ impl pallet_deip_stake_voting::Config for Runtime {
     type Call = Call;
     type Currency = Balances;
     type DepositBase = DepositBase;
-    type Assets = DeipAssets;
-    type AssetId = <Self as pallet_assets::Config>::AssetId;
+    type AssetId = Self::Hash;
     type AssetBalance = <Self as pallet_assets::Config>::Balance;
+    type AssetImpl = DeipUniques;
+    type Asset = NFTokenFraction<Self::AssetImpl>;
     type RelativeThresholdLimit = RelativeThresholdLimit;
     type MaxVotesPerAccountAsset = MaxVotesPerAccountAsset;
     type WeightInfo = pallet_deip_stake_voting::weights::Weights<Runtime>;
@@ -1202,7 +1203,7 @@ impl_runtime_apis! {
             list_benchmark!(list, extra, pallet_deip_dao, DeipDao);
             list_benchmark!(list, extra, pallet_deip_portal, DeipPortal);
             // list_benchmark!(list, extra, pallet_deip, Deip);
-            list_benchmark!(list, extra, pallet_deip_investment_opportunity, DeipInvestmentOpportunity);
+            //list_benchmark!(list, extra, pallet_deip_investment_opportunity, DeipInvestmentOpportunity);
             list_benchmark!(list, extra, pallet_deip_stake_voting, DeipStakeVoting);
 
             let storage_info = AllPalletsWithSystem::storage_info();
@@ -1244,7 +1245,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_deip_dao, DeipDao);
             add_benchmark!(params, batches, pallet_deip_portal, DeipPortal);
             // add_benchmark!(params, batches, pallet_deip, Deip);
-            add_benchmark!(params, batches, pallet_deip_investment_opportunity, DeipInvestmentOpportunity);
+            //add_benchmark!(params, batches, pallet_deip_investment_opportunity, DeipInvestmentOpportunity);
             add_benchmark!(params, batches, pallet_deip_stake_voting, DeipStakeVoting);
 
             Ok(batches)
